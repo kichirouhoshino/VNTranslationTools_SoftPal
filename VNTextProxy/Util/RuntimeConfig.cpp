@@ -61,6 +61,8 @@ void RuntimeConfig::Load()
         _enableFontSubstitution = config.value("enableFontSubstitution", true);
         _customFontFilename = Utf8ToWstring(config.at("customFontFilename").get<std::string>());
         _monospaceFontFilename = Utf8ToWstring(config.at("monospaceFontFilename").get<std::string>());
+        _customFontName = Utf8ToWstring(config.value("customFontName", ""));
+        _monospaceFontName = Utf8ToWstring(config.value("monospaceFontName", ""));
         _fontHeightIncrease = config.at("fontHeightIncrease").get<int>();
         _fontYSpacingBetweenLines = config.at("fontYSpacingBetweenLines").get<int>();
         _fontYTopPosDecrease = config.at("fontYTopPosDecrease").get<int>();
@@ -110,6 +112,8 @@ void RuntimeConfig::Load()
         _directX11Upscaling ? "true" : "false");
     proxy_log(LogCategory::HOOKS, "  customFontFilename: %ls", _customFontFilename.c_str());
     proxy_log(LogCategory::HOOKS, "  monospaceFontFilename: %ls", _monospaceFontFilename.c_str());
+    proxy_log(LogCategory::HOOKS, "  customFontName: %ls", _customFontName.c_str());
+    proxy_log(LogCategory::HOOKS, "  monospaceFontName: %ls", _monospaceFontName.c_str());
     proxy_log(LogCategory::HOOKS, "  fontHeightIncrease: %d", _fontHeightIncrease);
     proxy_log(LogCategory::HOOKS, "  fontYSpacingBetweenLines: %d", _fontYSpacingBetweenLines);
     proxy_log(LogCategory::HOOKS, "  fontYTopPosDecrease: %d", _fontYTopPosDecrease);
@@ -132,6 +136,8 @@ void RuntimeConfig::OverrideToRaw()
 }
 const std::wstring& RuntimeConfig::CustomFontFilename() { return _customFontFilename; }
 const std::wstring& RuntimeConfig::MonospaceFontFilename() { return _monospaceFontFilename; }
+const std::wstring& RuntimeConfig::CustomFontName() { return _customFontName; }
+const std::wstring& RuntimeConfig::MonospaceFontName() { return _monospaceFontName; }
 int RuntimeConfig::FontHeightIncrease() { return _fontHeightIncrease; }
 int RuntimeConfig::FontYSpacingBetweenLines() { return _fontYSpacingBetweenLines; }
 int RuntimeConfig::FontYTopPosDecrease() { return _fontYTopPosDecrease; }

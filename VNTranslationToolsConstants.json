@@ -30,8 +30,10 @@
   //
   // Main font. We use the ExtraBold weight because it looks good with the black outlines SoftPal adds around each shape.
   "customFontFilename": "Nunito ExtraBold.ttf",
+  "customFontName": "Nunito",
   // Monospace is used in niche situations like messages rendered on a computer within the fiction.
   "monospaceFontFilename": "Inconsolata ExtraBold.ttf",
+  "monospaceFontName": "Inconsolata",
   // Font height increase relative to baseline, generally 21 -> 27.
   // This increases the size of the entire font but is measured in terms of pixel height, not "pt"s.
   "fontHeightIncrease": 6

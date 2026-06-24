@@ -18,6 +18,8 @@ public:
     static void OverrideToRaw();
     static const std::wstring& CustomFontFilename();
     static const std::wstring& MonospaceFontFilename();
+    static const std::wstring& CustomFontName();
+    static const std::wstring& MonospaceFontName();
     static int FontHeightIncrease();
     static int FontYSpacingBetweenLines();
     static int FontYTopPosDecrease();
@@ -33,6 +35,8 @@ private:
     static inline bool _directX11Upscaling;
     static inline std::wstring _customFontFilename;
     static inline std::wstring _monospaceFontFilename;
+    static inline std::wstring _customFontName;
+    static inline std::wstring _monospaceFontName;
     static inline int _fontHeightIncrease;
     static inline int _fontYSpacingBetweenLines;
     static inline int _fontYTopPosDecrease;

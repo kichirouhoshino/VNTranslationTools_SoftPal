@@ -1,4 +1,4 @@
-﻿#include "pch.h"
+#include "pch.h"
 #include "SharedConstants.h"
 #include <sstream>
 
@@ -115,6 +115,9 @@ wstring Proportionalizer::LoadCustomFont()
         ShowErrorAndExit(ss.str());
     }
 
+    if (!RuntimeConfig::CustomFontName().empty())
+        return RuntimeConfig::CustomFontName();
+
     wstring fontFileName = CustomFontFilePath;
     fontFileName.erase(0, fontFileName.rfind(L'\\') + 1);
     fontFileName.erase(fontFileName.find(L'.'), -1);
@@ -148,6 +151,9 @@ wstring Proportionalizer::LoadMonospaceFont()
         ss << L"The font file may be corrupted or in an unsupported format.";
         ShowErrorAndExit(ss.str());
     }
+
+    if (!RuntimeConfig::MonospaceFontName().empty())
+        return RuntimeConfig::MonospaceFontName();
 
     // Extract font name from filename (remove path and extension)
     wstring fontFileName = fontPath;
