@@ -83,6 +83,9 @@ void Initialize()
         else
             DX9Hooks::Install();
         DirectShowVideoScale::Install();
+        // Also hook PalVideoPlay in pillarboxed mode so our RenderFile-based
+        // video player replaces Pal.dll's broken WMV DMO filter chain.
+        PALVideoFix::Install();
     }
     else {
         PALVideoFix::Install();

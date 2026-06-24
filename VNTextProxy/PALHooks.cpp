@@ -229,33 +229,89 @@ namespace PALVideoFix
         static GameManager* g_pGameMgr = nullptr;
         static int(__cdecl* oPalVideoPlay)(const char* fileName) = nullptr;
 
+        static int PlayVideoWithRenderFile(const char* fileName, HWND hWnd)
+        {
+            char fullPath[MAX_PATH];
+            snprintf(fullPath, MAX_PATH, "movie\\%s.wmv", fileName);
+            if (GetFileAttributesA(fullPath) == INVALID_FILE_ATTRIBUTES)
+            {
+                snprintf(fullPath, MAX_PATH, "movie\\%s", fileName);
+                if (GetFileAttributesA(fullPath) == INVALID_FILE_ATTRIBUTES)
+                    return -1;
+            }
+            wchar_t wFullPath[MAX_PATH];
+            MultiByteToWideChar(CP_ACP, 0, fullPath, -1, wFullPath, MAX_PATH);
+            CoInitialize(nullptr);
+            IGraphBuilder* pGraph = nullptr;
+            HRESULT hr = CoCreateInstance(CLSID_FilterGraph, nullptr, CLSCTX_INPROC_SERVER, IID_IGraphBuilder, (void**)&pGraph);
+            if (FAILED(hr)) return -1;
+            hr = pGraph->RenderFile(wFullPath, nullptr);
+            if (FAILED(hr)) { pGraph->Release(); return -1; }
+            IVideoWindow* pVW = nullptr;
+            IMediaControl* pMC = nullptr;
+            IMediaEvent* pME = nullptr;
+            if (SUCCEEDED(pGraph->QueryInterface(IID_IVideoWindow, (void**)&pVW)) && pVW && hWnd)
+            {
+                pVW->put_Owner((OAHWND)hWnd);
+                pVW->put_WindowStyle(WS_CHILD | WS_CLIPSIBLINGS);
+                RECT rc = {};
+                GetClientRect(hWnd, &rc);
+                pVW->SetWindowPosition(rc.left, rc.top, rc.right - rc.left, rc.bottom - rc.top);
+                pVW->put_Visible(OATRUE);
+            }
+            pGraph->QueryInterface(IID_IMediaControl, (void**)&pMC);
+            pGraph->QueryInterface(IID_IMediaEvent, (void**)&pME);
+            if (pMC) pMC->Run();
+            if (pME)
+            {
+                HANDLE hEvent = nullptr;
+                pME->GetEventHandle((OAEVENT*)&hEvent);
+                MSG msg;
+                bool done = false;
+                while (!done)
+                {
+                    DWORD waitResult = MsgWaitForMultipleObjects(hEvent ? 1 : 0, &hEvent, FALSE, hEvent ? INFINITE : 100, QS_ALLINPUT);
+                    if (waitResult == WAIT_OBJECT_0 && hEvent)
+                    {
+                        long evCode = 0; LONG_PTR p1 = 0, p2 = 0;
+                        while (SUCCEEDED(pME->GetEvent(&evCode, &p1, &p2, 0)))
+                        {
+                            pME->FreeEventParams(evCode, p1, p2);
+                            if (evCode == EC_COMPLETE || evCode == EC_USERABORT || evCode == EC_ERRORABORT) { done = true; break; }
+                        }
+                    }
+                    else
+                    {
+                        while (PeekMessageA(&msg, nullptr, 0, 0, PM_REMOVE))
+                        {
+                            if (msg.message == WM_KEYDOWN && (msg.wParam == VK_ESCAPE || msg.wParam == VK_RETURN || msg.wParam == VK_SPACE)) { done = true; break; }
+                            if (msg.message == WM_LBUTTONDOWN || msg.message == WM_RBUTTONDOWN) { done = true; break; }
+                            TranslateMessage(&msg); DispatchMessageA(&msg);
+                        }
+                    }
+                }
+            }
+            if (pVW) { pVW->put_Visible(OAFALSE); pVW->put_Owner(0); pVW->Release(); }
+            if (pMC) { pMC->Stop(); pMC->Release(); }
+            if (pME) pME->Release();
+            pGraph->Release();
+            return 0;
+        }
+
         int __cdecl PalVideoPlay_Hook(const char* fileName)
         {
             static bool isInitialized = false;
             if (!isInitialized)
             {
-                dbg_log("PalVideoPlay_Hook: First run, performing initialization...");
                 HMODULE hMod = GetModuleHandleA(TARGET_DLL_NAME);
-                if (hMod)
-                {
-                    uintptr_t moduleBase = (uintptr_t)hMod;
-                    g_pGameMgr = *(GameManager**)(moduleBase + GAME_MANAGER_POINTER_OFFSET);
-                    dbg_log("PalVideoPlay_Hook: Module base=0x%p, g_pGameMgr=0x%p, g_pGameMgr->hWnd=0x%p", hMod, g_pGameMgr, g_pGameMgr->hWnd);
-                }
-                else
-                {
-                    dbg_log("PalVideoPlay_Hook: ERROR - Could not get module handle for '%s'", TARGET_DLL_NAME);
-                }
+                if (hMod) g_pGameMgr = *(GameManager**)((uintptr_t)hMod + GAME_MANAGER_POINTER_OFFSET);
                 isInitialized = true;
             }
-
-            dbg_log("PalVideoPlay_Hook: Playing '%s'", fileName);
-
-            int result = oPalVideoPlay(fileName);
-
+            HWND hWnd = g_pGameMgr ? g_pGameMgr->hWnd : nullptr;
+            int result = PlayVideoWithRenderFile(fileName, hWnd);
+            if (result < 0) result = oPalVideoPlay(fileName);
             if (g_pGameMgr && g_pGameMgr->defferedWindowMode != 0)
             {
-                dbg_log("PalVideoPlay_Hook: Fullscreen mode detected. Posting messages to reset display.");
                 PostMessageA(g_pGameMgr->hWnd, MSG_TOGGLE_DISPLAY_MODE, 0, 0);
                 PostMessageA(g_pGameMgr->hWnd, MSG_TOGGLE_DISPLAY_MODE, 1, 0);
             }
