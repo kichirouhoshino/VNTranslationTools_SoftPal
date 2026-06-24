@@ -229,6 +229,35 @@ namespace PALVideoFix
         static GameManager* g_pGameMgr = nullptr;
         static int(__cdecl* oPalVideoPlay)(const char* fileName) = nullptr;
 
+        struct EnumWindowsData
+        {
+            DWORD dwProcessId;
+            HWND hWnd;
+        };
+
+        static BOOL CALLBACK EnumWindowsProc(HWND hWnd, LPARAM lParam)
+        {
+            EnumWindowsData* pData = (EnumWindowsData*)lParam;
+            DWORD dwProcessId = 0;
+            GetWindowThreadProcessId(hWnd, &dwProcessId);
+            if (dwProcessId == pData->dwProcessId)
+            {
+                if (GetParent(hWnd) == nullptr && IsWindowVisible(hWnd))
+                {
+                    pData->hWnd = hWnd;
+                    return FALSE; // stop enumerating
+                }
+            }
+            return TRUE;
+        }
+
+        static HWND GetCurrentProcessMainWindow()
+        {
+            EnumWindowsData data = { GetCurrentProcessId(), nullptr };
+            EnumWindows(EnumWindowsProc, (LPARAM)&data);
+            return data.hWnd;
+        }
+
         static int PlayVideoWithRenderFile(const char* fileName, HWND hWnd)
         {
             char fullPath[MAX_PATH];
@@ -307,13 +336,50 @@ namespace PALVideoFix
                 if (hMod) g_pGameMgr = *(GameManager**)((uintptr_t)hMod + GAME_MANAGER_POINTER_OFFSET);
                 isInitialized = true;
             }
-            HWND hWnd = g_pGameMgr ? g_pGameMgr->hWnd : nullptr;
+
+            HWND hWnd = nullptr;
+            __try
+            {
+                if (g_pGameMgr)
+                {
+                    hWnd = g_pGameMgr->hWnd;
+                }
+            }
+            __except (EXCEPTION_EXECUTE_HANDLER)
+            {
+                hWnd = nullptr;
+            }
+
+            if (!hWnd || !IsWindow(hWnd))
+            {
+                hWnd = GetCurrentProcessMainWindow();
+                dbg_log("PalVideoPlay_Hook: GameManager hWnd was invalid or null, resolved process main window to 0x%p", hWnd);
+            }
+            else
+            {
+                dbg_log("PalVideoPlay_Hook: using GameManager hWnd 0x%p", hWnd);
+            }
+
             int result = PlayVideoWithRenderFile(fileName, hWnd);
             if (result < 0) result = oPalVideoPlay(fileName);
-            if (g_pGameMgr && g_pGameMgr->defferedWindowMode != 0)
+
+            bool isFullscreen = false;
+            __try
             {
-                PostMessageA(g_pGameMgr->hWnd, MSG_TOGGLE_DISPLAY_MODE, 0, 0);
-                PostMessageA(g_pGameMgr->hWnd, MSG_TOGGLE_DISPLAY_MODE, 1, 0);
+                if (g_pGameMgr && g_pGameMgr->defferedWindowMode != 0)
+                {
+                    isFullscreen = true;
+                }
+            }
+            __except (EXCEPTION_EXECUTE_HANDLER)
+            {
+                isFullscreen = false;
+            }
+
+            if (isFullscreen)
+            {
+                PostMessageA(hWnd, MSG_TOGGLE_DISPLAY_MODE, 0, 0);
+                PostMessageA(hWnd, MSG_TOGGLE_DISPLAY_MODE, 1, 0);
             }
             else
             {
