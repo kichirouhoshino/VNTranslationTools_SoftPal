@@ -6,7 +6,7 @@ Font::Font(const LOGFONTW& info)
 {
     _dc = CreateCompatibleDC(GetDC(nullptr));
     _info = info;
-    _gdiHandle = CreateFontIndirectW(&info);
+    _gdiHandle = GdiProportionalizer::OrigCreateFontIndirectW(&info);
     _pDWriteTextFormat = nullptr;
 
     GdiProportionalizer::OrigSelectObject(_dc, _gdiHandle);

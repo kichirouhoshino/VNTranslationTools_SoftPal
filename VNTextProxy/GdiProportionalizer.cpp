@@ -17,9 +17,6 @@
 
 using namespace std;
 
-// File-scope trampoline pointers for functions whose originals are only needed in this file
-static decltype(&::CreateFontA) OrigCreateFontA = &::CreateFontA;
-static decltype(&::GetGlyphOutlineA) OrigGetGlyphOutlineA = &::GetGlyphOutlineA;
 
 /*
 SoftPal uses GDI methods only to create the font and to compute the metrics and bitmap of one character at a time.
@@ -116,6 +113,9 @@ void GdiProportionalizer::Init()
     DetourTransactionBegin();
     DetourUpdateThread(GetCurrentThread());
     DetourAttach(&(PVOID&)OrigCreateFontA, (PVOID)CreateFontAHook);
+    DetourAttach(&(PVOID&)OrigCreateFontW, (PVOID)CreateFontWHook);
+    DetourAttach(&(PVOID&)OrigCreateFontIndirectA, (PVOID)CreateFontIndirectAHook);
+    DetourAttach(&(PVOID&)OrigCreateFontIndirectW, (PVOID)CreateFontIndirectWHook);
     DetourAttach(&(PVOID&)OrigSelectObject, (PVOID)SelectObjectHook);
     DetourAttach(&(PVOID&)OrigDeleteObject, (PVOID)DeleteObjectHook);
     DetourAttach(&(PVOID&)OrigGetGlyphOutlineA, (PVOID)GetGlyphOutlineAHook);

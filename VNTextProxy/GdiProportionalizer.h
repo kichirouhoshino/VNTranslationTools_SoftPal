@@ -6,10 +6,15 @@ public:
     static void Init();
 
     // Trampoline pointers to the REAL GDI functions (after DetourAttach).
-    // Use these instead of calling SelectObject/DeleteObject directly
-    // to avoid recursion through our Detour hooks.
+    // Use these instead of calling GDI functions directly inside hooks
+    // to avoid recursion.
     static inline decltype(&::SelectObject) OrigSelectObject = &::SelectObject;
     static inline decltype(&::DeleteObject) OrigDeleteObject = &::DeleteObject;
+    static inline decltype(&::CreateFontA) OrigCreateFontA = &::CreateFontA;
+    static inline decltype(&::CreateFontW) OrigCreateFontW = &::CreateFontW;
+    static inline decltype(&::CreateFontIndirectA) OrigCreateFontIndirectA = &::CreateFontIndirectA;
+    static inline decltype(&::CreateFontIndirectW) OrigCreateFontIndirectW = &::CreateFontIndirectW;
+    static inline decltype(&::GetGlyphOutlineA) OrigGetGlyphOutlineA = &::GetGlyphOutlineA;
 
 private:
     static int __stdcall EnumFontsAHook(HDC hdc, LPCSTR lpLogfont, FONTENUMPROCA lpProc, LPARAM lParam);
