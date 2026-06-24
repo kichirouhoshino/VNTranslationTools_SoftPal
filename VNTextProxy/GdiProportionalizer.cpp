@@ -250,6 +250,9 @@ std::string WideToUTF8(const wchar_t* wstr)
 
 HFONT GdiProportionalizer::CreateFontIndirectWHook(LOGFONTW* pFontInfo)
 {
+    proxy_log(LogCategory::TEXT, "GdiProportionalizer::CreateFontIndirectWHook() ENTER: faceName='%ls', height=%d, weight=%d, charset=%d, pitchAndFamily=%d, quality=%d",
+        pFontInfo->lfFaceName, pFontInfo->lfHeight, pFontInfo->lfWeight, pFontInfo->lfCharSet, pFontInfo->lfPitchAndFamily, pFontInfo->lfQuality);
+
     if (CustomFontName.empty())
     {
         LastFontName = pFontInfo->lfFaceName;
@@ -300,6 +303,13 @@ HGDIOBJ GdiProportionalizer::SelectObjectHook(HDC hdc, HGDIOBJ obj)
         CurrentFonts[hdc] = pFont;
 
     HGDIOBJ ret = OrigSelectObject(hdc, obj);
+
+    if (GetObjectType(obj) == OBJ_FONT)
+    {
+        wchar_t faceName[LF_FACESIZE] = { 0 };
+        GetTextFaceW(hdc, LF_FACESIZE, faceName);
+        proxy_log(LogCategory::TEXT, "GdiProportionalizer::SelectObjectHook(): selected font face: %ls (handle 0x%p)", faceName, obj);
+    }
 
 #if LEGACY_KERNING
     DWORD count = GetKerningPairsW(hdc, 0, nullptr);

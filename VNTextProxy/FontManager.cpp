@@ -1,4 +1,5 @@
 #include "pch.h"
+#include "SharedConstants.h"
 
 using namespace std;
 
@@ -22,7 +23,7 @@ Font* FontManager::FetchFont(const wstring& faceName, int height, bool bold, boo
     info.lfUnderline = underline;
 
     info.lfWidth = 0;
-    info.lfCharSet = DEFAULT_CHARSET;
+    info.lfCharSet = (faceName == JAPANESE_FONT_NAME) ? SHIFTJIS_CHARSET : ANSI_CHARSET;
     info.lfClipPrecision = CLIP_DEFAULT_PRECIS;
     info.lfEscapement = 0;
     info.lfOrientation = 0;

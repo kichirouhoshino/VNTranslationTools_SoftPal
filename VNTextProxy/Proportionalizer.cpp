@@ -1,5 +1,6 @@
 #include "pch.h"
 #include "SharedConstants.h"
+#include "Util/Logger.h"
 #include <sstream>
 
 using namespace std;
@@ -107,6 +108,7 @@ wstring Proportionalizer::LoadCustomFont()
     }
 
     int numFonts = AddFontResourceExW(CustomFontFilePath.c_str(), FR_PRIVATE, nullptr);
+    proxy_log(LogCategory::TEXT, "Proportionalizer::LoadCustomFont(): AddFontResourceExW returned %d for %ls", numFonts, CustomFontFilePath.c_str());
     if (numFonts == 0)
     {
         wstringstream ss;
@@ -144,6 +146,7 @@ wstring Proportionalizer::LoadMonospaceFont()
     }
 
     int numFonts = AddFontResourceExW(fontPath.c_str(), FR_PRIVATE, nullptr);
+    proxy_log(LogCategory::TEXT, "Proportionalizer::LoadMonospaceFont(): AddFontResourceExW returned %d for %ls", numFonts, fontPath.c_str());
     if (numFonts == 0)
     {
         wstringstream ss;

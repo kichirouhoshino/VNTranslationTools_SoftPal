@@ -7,6 +7,9 @@ public:
 
 private:
     static UINT __stdcall GetACPHook();
+    static UINT __stdcall GetOEMCPHook();
+    static BOOL __stdcall GetCPInfoHook(UINT CodePage, LPCPINFO lpCPInfo);
+    static LCID __stdcall GetUserDefaultLCIDHook();
     static BOOL __stdcall IsDBCSLeadByteHook(BYTE TestChar);
     static int __stdcall MultiByteToWideCharHook(UINT codePage, DWORD flags, LPCCH lpMultiByteStr, int cbMultiByte, LPWSTR lpWideCharStr, int cchWideChar);
     static int __stdcall WideCharToMultiByteHook(UINT codePage, DWORD flags, LPCWCH lpWideCharStr, int cchWideChar, LPSTR lpMultiByteStr, int cbMultiByte, LPCCH lpDefaultChar, LPBOOL lpUsedDefaultChar);
@@ -33,6 +36,17 @@ private:
     static DWORD __stdcall GetCurrentDirectoryAHook(DWORD nBufferLength, LPSTR lpBuffer);
     static DWORD __stdcall GetTempPathAHook(DWORD nBufferLength, LPSTR lpBuffer);
     static UINT __stdcall GetTempFileNameAHook(LPCSTR lpPathName, LPCSTR lpPrefixString, UINT uUnique, LPSTR lpTempFileName);
+    static BOOL __stdcall SHGetSpecialFolderPathAHook(HWND hwnd, LPSTR pszPath, int csidl, BOOL fCreate);
+    static BOOL __stdcall CopyFileAHook(LPCSTR lpExistingFileName, LPCSTR lpNewFileName, BOOL bFailIfExists);
+    static BOOL __stdcall MoveFileAHook(LPCSTR lpExistingFileName, LPCSTR lpNewFileName);
+    static BOOL __stdcall SetCurrentDirectoryAHook(LPCSTR lpPathName);
+    static BOOL __stdcall PathFileExistsAHook(LPCSTR pszPath);
+    static BOOL __stdcall PathIsDirectoryAHook(LPCSTR pszPath);
+    static BOOL __stdcall PathRemoveFileSpecAHook(LPSTR pszPath);
+    static BOOL __stdcall PathRenameExtensionAHook(LPSTR pszPath, LPCSTR pszExt);
+    static void __stdcall PathUnquoteSpacesAHook(LPSTR lpszPath);
+    static BOOL __stdcall PathAddExtensionAHook(LPSTR pszPath, LPCSTR pszExt);
+    static DWORD_PTR __stdcall SHGetFileInfoAHook(LPCSTR pszPath, DWORD dwFileAttributes, SHFILEINFOA* psfi, UINT cbFileInfo, UINT uFlags);
 
     static LSTATUS __stdcall RegCreateKeyExAHook(HKEY hKey, LPCSTR lpSubKey, DWORD Reserved, LPSTR lpClass, DWORD dwOptions, REGSAM samDesired, const LPSECURITY_ATTRIBUTES lpSecurityAttributes, PHKEY phkResult, LPDWORD lpdwDisposition);
     static LSTATUS __stdcall RegOpenKeyExAHook(HKEY hKey, LPCSTR lpSubKey, DWORD ulOptions, REGSAM samDesired, PHKEY phkResult);

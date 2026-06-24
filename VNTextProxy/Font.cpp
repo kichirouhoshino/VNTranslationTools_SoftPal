@@ -1,4 +1,5 @@
 #include "pch.h"
+#include "Util/Logger.h"
 
 using namespace std;
 
@@ -10,6 +11,10 @@ Font::Font(const LOGFONTW& info)
     _pDWriteTextFormat = nullptr;
 
     GdiProportionalizer::OrigSelectObject(_dc, _gdiHandle);
+
+    wchar_t faceName[LF_FACESIZE] = { 0 };
+    GetTextFaceW(_dc, LF_FACESIZE, faceName);
+    proxy_log(LogCategory::TEXT, "Font::Font(): requested: %ls, selected face: %ls, lfCharSet: %d, height: %d", info.lfFaceName, faceName, info.lfCharSet, info.lfHeight);
 
     DWORD numKernings = GetKerningPairsW(_dc, 0, nullptr);
     vector<KERNINGPAIR> kernings(numKernings);

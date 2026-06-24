@@ -2,6 +2,7 @@
 #include "SharedConstants.h"
 #include "PillarboxedState.h"
 #include "Util/Logger.h"
+#include <shlobj.h>
 
 using namespace std;
 
@@ -15,6 +16,9 @@ void Win32AToWAdapter::Init()
     ImportHooker::Hook(
         {
             { "GetACP", GetACPHook },
+            { "GetOEMCP", GetOEMCPHook },
+            { "GetCPInfo", GetCPInfoHook },
+            { "GetUserDefaultLCID", GetUserDefaultLCIDHook },
             { "IsDBCSLeadByte", IsDBCSLeadByteHook },
             { "MultiByteToWideChar", MultiByteToWideCharHook },
             { "WideCharToMultiByte", WideCharToMultiByteHook },
@@ -36,13 +40,24 @@ void Win32AToWAdapter::Init()
             { "CreateFileA", CreateFileAHook },
             { "DeleteFileA", DeleteFileAHook },
             { "CreateDirectoryA", CreateDirectoryAHook },
-            { "RemoveDirectoryA", RemoveDirectoryA },
+            { "RemoveDirectoryA", RemoveDirectoryAHook },
             { "GetCurrentDirectoryA", GetCurrentDirectoryAHook },
             { "GetTempPathA", GetTempPathAHook },
             { "GetTempFileNameA", GetTempFileNameAHook },
+            { "SHGetSpecialFolderPathA", SHGetSpecialFolderPathAHook },
+            { "CopyFileA", CopyFileAHook },
+            { "MoveFileA", MoveFileAHook },
+            { "SetCurrentDirectoryA", SetCurrentDirectoryAHook },
+            { "PathFileExistsA", PathFileExistsAHook },
+            { "PathIsDirectoryA", PathIsDirectoryAHook },
+            { "PathRemoveFileSpecA", PathRemoveFileSpecAHook },
+            { "PathRenameExtensionA", PathRenameExtensionAHook },
+            { "PathUnquoteSpacesA", PathUnquoteSpacesAHook },
+            { "PathAddExtensionA", PathAddExtensionAHook },
+            { "SHGetFileInfoA", SHGetFileInfoAHook },
 
-            { "RegCreateKeyExA", RegCreateKeyExA },
-            { "RegOpenKeyExA", RegOpenKeyExA },
+            { "RegCreateKeyExA", RegCreateKeyExAHook },
+            { "RegOpenKeyExA", RegOpenKeyExAHook },
             { "RegQueryValueExA", RegQueryValueExAHook },
             { "RegSetValueExA", RegSetValueExAHook },
 
@@ -84,6 +99,25 @@ UINT Win32AToWAdapter::GetACPHook()
     return 932;
 }
 
+UINT Win32AToWAdapter::GetOEMCPHook()
+{
+    return 932;
+}
+
+BOOL Win32AToWAdapter::GetCPInfoHook(UINT CodePage, LPCPINFO lpCPInfo)
+{
+    if (CodePage == CP_ACP || CodePage == CP_OEMCP || CodePage == CP_THREAD_ACP || CodePage == 932)
+    {
+        return GetCPInfo(932, lpCPInfo);
+    }
+    return GetCPInfo(CodePage, lpCPInfo);
+}
+
+LCID Win32AToWAdapter::GetUserDefaultLCIDHook()
+{
+    return 0x0411;
+}
+
 BOOL Win32AToWAdapter::IsDBCSLeadByteHook(BYTE TestChar)
 {
     return (TestChar >= 0x81 && TestChar < 0xA0) || (TestChar >= 0xE0 && TestChar < 0xFD);
@@ -91,7 +125,7 @@ BOOL Win32AToWAdapter::IsDBCSLeadByteHook(BYTE TestChar)
 
 int Win32AToWAdapter::MultiByteToWideCharHook(UINT codePage, DWORD flags, LPCCH lpMultiByteStr, int cbMultiByte, LPWSTR lpWideCharStr, int cchWideChar)
 {
-    if (codePage != CP_ACP && codePage != CP_THREAD_ACP && codePage != 932)
+    if (codePage != CP_ACP && codePage != CP_THREAD_ACP && codePage != CP_OEMCP && codePage != 932)
         return MultiByteToWideChar(codePage, flags, lpMultiByteStr, cbMultiByte, lpWideCharStr, cchWideChar);
 
     wstring wstr = SjisTunnelEncoding::Decode(lpMultiByteStr, cbMultiByte);
@@ -114,7 +148,7 @@ int Win32AToWAdapter::MultiByteToWideCharHook(UINT codePage, DWORD flags, LPCCH 
 
 int Win32AToWAdapter::WideCharToMultiByteHook(UINT codePage, DWORD flags, LPCWCH lpWideCharStr, int cchWideChar, LPSTR lpMultiByteStr, int cbMultiByte, LPCCH lpDefaultChar, LPBOOL lpUsedDefaultChar)
 {
-    if (codePage != CP_ACP && codePage != 932)
+    if (codePage != CP_ACP && codePage != CP_THREAD_ACP && codePage != CP_OEMCP && codePage != 932)
         return WideCharToMultiByte(codePage, flags, lpWideCharStr, cchWideChar, lpMultiByteStr, cbMultiByte, lpDefaultChar, lpUsedDefaultChar);
 
     if (lpUsedDefaultChar != nullptr)
@@ -378,6 +412,146 @@ UINT Win32AToWAdapter::GetTempFileNameAHook(LPCSTR lpPathName, LPCSTR lpPrefixSt
 
     string strTempFileName = SjisTunnelEncoding::Encode(wszTempFileName);
     strncpy_s(lpTempFileName, MAX_PATH, strTempFileName.c_str(), strTempFileName.size());
+    return result;
+}
+
+BOOL Win32AToWAdapter::SHGetSpecialFolderPathAHook(HWND hwnd, LPSTR pszPath, int csidl, BOOL fCreate)
+{
+    wchar_t wszPath[MAX_PATH];
+    BOOL result = SHGetSpecialFolderPathW(hwnd, wszPath, csidl, fCreate);
+    if (!result)
+        return FALSE;
+
+    string strPath = SjisTunnelEncoding::Encode(wszPath);
+    strcpy_s(pszPath, MAX_PATH, strPath.c_str());
+    return TRUE;
+}
+
+BOOL Win32AToWAdapter::CopyFileAHook(LPCSTR lpExistingFileName, LPCSTR lpNewFileName, BOOL bFailIfExists)
+{
+    return CopyFileW(
+        SjisTunnelEncoding::Decode(lpExistingFileName).c_str(),
+        SjisTunnelEncoding::Decode(lpNewFileName).c_str(),
+        bFailIfExists
+    );
+}
+
+BOOL Win32AToWAdapter::MoveFileAHook(LPCSTR lpExistingFileName, LPCSTR lpNewFileName)
+{
+    return MoveFileW(
+        SjisTunnelEncoding::Decode(lpExistingFileName).c_str(),
+        SjisTunnelEncoding::Decode(lpNewFileName).c_str()
+    );
+}
+
+BOOL Win32AToWAdapter::SetCurrentDirectoryAHook(LPCSTR lpPathName)
+{
+    return SetCurrentDirectoryW(SjisTunnelEncoding::Decode(lpPathName).c_str());
+}
+
+BOOL Win32AToWAdapter::PathFileExistsAHook(LPCSTR pszPath)
+{
+    static auto pPathFileExistsW = (BOOL (__stdcall *)(LPCWSTR))GetProcAddress(GetModuleHandleW(L"shlwapi.dll"), "PathFileExistsW");
+    if (pPathFileExistsW)
+        return pPathFileExistsW(SjisTunnelEncoding::Decode(pszPath).c_str());
+    return FALSE;
+}
+
+BOOL Win32AToWAdapter::PathIsDirectoryAHook(LPCSTR pszPath)
+{
+    static auto pPathIsDirectoryW = (BOOL (__stdcall *)(LPCWSTR))GetProcAddress(GetModuleHandleW(L"shlwapi.dll"), "PathIsDirectoryW");
+    if (pPathIsDirectoryW)
+        return pPathIsDirectoryW(SjisTunnelEncoding::Decode(pszPath).c_str());
+    return FALSE;
+}
+
+BOOL Win32AToWAdapter::PathRemoveFileSpecAHook(LPSTR pszPath)
+{
+    if (pszPath == nullptr)
+        return FALSE;
+    static auto pPathRemoveFileSpecW = (BOOL (__stdcall *)(LPWSTR))GetProcAddress(GetModuleHandleW(L"shlwapi.dll"), "PathRemoveFileSpecW");
+    if (!pPathRemoveFileSpecW)
+        return FALSE;
+    wstring pathW = SjisTunnelEncoding::Decode(pszPath);
+    BOOL result = pPathRemoveFileSpecW(pathW.data());
+    string pathA = SjisTunnelEncoding::Encode(pathW);
+    strcpy(pszPath, pathA.c_str());
+    return result;
+}
+
+BOOL Win32AToWAdapter::PathRenameExtensionAHook(LPSTR pszPath, LPCSTR pszExt)
+{
+    if (pszPath == nullptr)
+        return FALSE;
+    static auto pPathRenameExtensionW = (BOOL (__stdcall *)(LPWSTR, LPCWSTR))GetProcAddress(GetModuleHandleW(L"shlwapi.dll"), "PathRenameExtensionW");
+    if (!pPathRenameExtensionW)
+        return FALSE;
+    wstring pathW = SjisTunnelEncoding::Decode(pszPath);
+    wstring extW = SjisTunnelEncoding::Decode(pszExt);
+    pathW.resize(MAX_PATH);
+    BOOL result = pPathRenameExtensionW(pathW.data(), extW.c_str());
+    pathW.resize(wcslen(pathW.c_str()));
+    string pathA = SjisTunnelEncoding::Encode(pathW);
+    strcpy(pszPath, pathA.c_str());
+    return result;
+}
+
+void Win32AToWAdapter::PathUnquoteSpacesAHook(LPSTR lpszPath)
+{
+    if (lpszPath == nullptr)
+        return;
+    static auto pPathUnquoteSpacesW = (void (__stdcall *)(LPWSTR))GetProcAddress(GetModuleHandleW(L"shlwapi.dll"), "PathUnquoteSpacesW");
+    if (!pPathUnquoteSpacesW)
+        return;
+    wstring pathW = SjisTunnelEncoding::Decode(lpszPath);
+    pPathUnquoteSpacesW(pathW.data());
+    string pathA = SjisTunnelEncoding::Encode(pathW.data());
+    strcpy(lpszPath, pathA.c_str());
+}
+
+BOOL Win32AToWAdapter::PathAddExtensionAHook(LPSTR pszPath, LPCSTR pszExt)
+{
+    if (pszPath == nullptr)
+        return FALSE;
+    static auto pPathAddExtensionW = (BOOL (__stdcall *)(LPWSTR, LPCWSTR))GetProcAddress(GetModuleHandleW(L"shlwapi.dll"), "PathAddExtensionW");
+    if (!pPathAddExtensionW)
+        return FALSE;
+    wstring pathW = SjisTunnelEncoding::Decode(pszPath);
+    wstring extW = pszExt != nullptr ? SjisTunnelEncoding::Decode(pszExt) : L"";
+    pathW.resize(MAX_PATH);
+    BOOL result = pPathAddExtensionW(pathW.data(), pszExt != nullptr ? extW.c_str() : nullptr);
+    pathW.resize(wcslen(pathW.c_str()));
+    string pathA = SjisTunnelEncoding::Encode(pathW);
+    strcpy(pszPath, pathA.c_str());
+    return result;
+}
+
+DWORD_PTR Win32AToWAdapter::SHGetFileInfoAHook(LPCSTR pszPath, DWORD dwFileAttributes, SHFILEINFOA* psfi, UINT cbFileInfo, UINT uFlags)
+{
+    if (psfi == nullptr)
+        return 0;
+
+    SHFILEINFOW sfiW{};
+    DWORD_PTR result = SHGetFileInfoW(
+        SjisTunnelEncoding::Decode(pszPath).c_str(),
+        dwFileAttributes,
+        &sfiW,
+        sizeof(sfiW),
+        uFlags
+    );
+    if (result == 0)
+        return 0;
+
+    psfi->hIcon = sfiW.hIcon;
+    psfi->iIcon = sfiW.iIcon;
+    psfi->dwAttributes = sfiW.dwAttributes;
+    
+    string displayNameA = SjisTunnelEncoding::Encode(sfiW.szDisplayName);
+    strcpy_s(psfi->szDisplayName, sizeof(psfi->szDisplayName), displayNameA.c_str());
+    
+    string typeNameA = SjisTunnelEncoding::Encode(sfiW.szTypeName);
+    strcpy_s(psfi->szTypeName, sizeof(psfi->szTypeName), typeNameA.c_str());
+
     return result;
 }
 
