@@ -125,6 +125,12 @@ BOOL Win32AToWAdapter::IsDBCSLeadByteHook(BYTE TestChar)
 
 int Win32AToWAdapter::MultiByteToWideCharHook(UINT codePage, DWORD flags, LPCCH lpMultiByteStr, int cbMultiByte, LPWSTR lpWideCharStr, int cchWideChar)
 {
+    if (lpMultiByteStr != nullptr)
+    {
+        string mbStr(lpMultiByteStr, cbMultiByte >= 0 ? cbMultiByte : strlen(lpMultiByteStr));
+        winapi_log("MultiByteToWideChar: cp=%d, str=%s", codePage, mbStr.c_str());
+    }
+
     if (codePage != CP_ACP && codePage != CP_THREAD_ACP && codePage != CP_OEMCP && codePage != 932)
         return MultiByteToWideChar(codePage, flags, lpMultiByteStr, cbMultiByte, lpWideCharStr, cchWideChar);
 
@@ -148,6 +154,13 @@ int Win32AToWAdapter::MultiByteToWideCharHook(UINT codePage, DWORD flags, LPCCH 
 
 int Win32AToWAdapter::WideCharToMultiByteHook(UINT codePage, DWORD flags, LPCWCH lpWideCharStr, int cchWideChar, LPSTR lpMultiByteStr, int cbMultiByte, LPCCH lpDefaultChar, LPBOOL lpUsedDefaultChar)
 {
+    if (lpWideCharStr != nullptr)
+    {
+        wstring wStr(lpWideCharStr, cchWideChar >= 0 ? cchWideChar : wcslen(lpWideCharStr));
+        string mbStr = SjisTunnelEncoding::Encode(wStr);
+        winapi_log("WideCharToMultiByte: cp=%d, str=%s", codePage, mbStr.c_str());
+    }
+
     if (codePage != CP_ACP && codePage != CP_THREAD_ACP && codePage != CP_OEMCP && codePage != 932)
         return WideCharToMultiByte(codePage, flags, lpWideCharStr, cchWideChar, lpMultiByteStr, cbMultiByte, lpDefaultChar, lpUsedDefaultChar);
 
