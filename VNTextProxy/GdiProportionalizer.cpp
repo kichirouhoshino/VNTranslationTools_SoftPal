@@ -752,8 +752,10 @@ DWORD GdiProportionalizer::GetGlyphOutlineAHook(HDC hdc, UINT uChar, UINT fuForm
 
     // SoftPal systematically adds 2 extra pixels of spacing after every character, beyond what the font specifies.
     // This is not very noticeable with Japanese characters, but it's extremely noticeable with a proportional Latin font.
-    // Cancel out that behavior here.
-    advOut = max(0, advOut - 2);
+    // Cancel out that behavior here, but only for dialogue text (which has a text grab).
+    if (hasTextGrab) {
+        advOut = max(0, advOut - 2);
+    }
 
     lpgm->gmCellIncX = advOut;
 

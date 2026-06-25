@@ -182,6 +182,9 @@ static std::set<std::wstring> s_loggedStrings;
 
 void RuntimeConfig::LogUntranslatedString(const std::wstring& str)
 {
+    if (!_debugLogging)
+        return;
+
     if (s_loggedStrings.find(str) != s_loggedStrings.end())
         return;
 
