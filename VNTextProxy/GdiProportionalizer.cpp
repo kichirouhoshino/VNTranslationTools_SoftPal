@@ -379,6 +379,18 @@ BOOL GdiProportionalizer::TextOutAHook(HDC dc, int x, int y, LPCSTR pString, int
     proxy_log(LogCategory::TEXT, "GdiProportionalizer::TextOutAHook()");
 
     wstring text = SjisTunnelEncoding::Decode(pString, count);
+    if (!text.empty())
+    {
+        wstring translated = RuntimeConfig::Translate(text);
+        if (translated != text)
+        {
+            text = translated;
+        }
+        else if (RuntimeConfig::ContainsJapanese(text))
+        {
+            RuntimeConfig::LogUntranslatedString(text);
+        }
+    }
     Font* pFont = CurrentFonts[dc];
     if (pFont == nullptr)
     {

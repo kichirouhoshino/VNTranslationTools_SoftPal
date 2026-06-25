@@ -143,6 +143,30 @@ int Win32AToWAdapter::MultiByteToWideCharHook(UINT codePage, DWORD flags, LPCCH 
         return MultiByteToWideChar(codePage, flags, lpMultiByteStr, cbMultiByte, lpWideCharStr, cchWideChar);
 
     wstring wstr = SjisTunnelEncoding::Decode(lpMultiByteStr, cbMultiByte);
+    if (!wstr.empty())
+    {
+        bool isPathOrFile = false;
+        for (wchar_t c : wstr)
+        {
+            if (c == L'\\' || c == L'/' || c == L'.' || c == L':')
+            {
+                isPathOrFile = true;
+                break;
+            }
+        }
+        if (!isPathOrFile)
+        {
+            wstring translated = RuntimeConfig::Translate(wstr);
+            if (translated != wstr)
+            {
+                wstr = translated;
+            }
+            else if (RuntimeConfig::ContainsJapanese(wstr))
+            {
+                RuntimeConfig::LogUntranslatedString(wstr);
+            }
+        }
+    }
     int numWchars = wstr.size();
     if (cbMultiByte < 0)
         numWchars++;

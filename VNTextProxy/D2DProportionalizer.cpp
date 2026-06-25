@@ -119,6 +119,23 @@ void D2DProportionalizer::D2DDrawTextHook(
     D2D1_DRAW_TEXT_OPTIONS options,
     DWRITE_MEASURING_MODE measuringMode)
 {
+    std::wstring text(pString, stringLength);
+    std::wstring translatedText;
+    if (!text.empty())
+    {
+        std::wstring translated = RuntimeConfig::Translate(text);
+        if (translated != text)
+        {
+            translatedText = translated;
+            pString = translatedText.c_str();
+            stringLength = (UINT32)translatedText.size();
+        }
+        else if (RuntimeConfig::ContainsJapanese(text))
+        {
+            RuntimeConfig::LogUntranslatedString(text);
+        }
+    }
+
     int fontSize = (int)pTextFormat->GetFontSize();
     int x = (int)pLayoutRect->left;
     int y = (int)pLayoutRect->top;
