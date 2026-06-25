@@ -37,6 +37,8 @@
   "fontHeightIncrease": 6,
   "translations": {
     "恋×シンアイ彼女": "Koi x Shin Ai Kanojo",
+    "警告": "Warning",
+    "システムの初期化時に問題が生じました。": "A problem occurred during system initialization.",
     "環境設定": "Preferences",
     "ｷｬﾝｾﾙ": "Cancel",
     "基本動作": "Basic Settings",

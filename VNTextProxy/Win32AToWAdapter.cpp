@@ -65,6 +65,8 @@ void Win32AToWAdapter::Init()
             { "RegSetValueExA", RegSetValueExAHook },
 
             { "CreateWindowExA", CreateWindowExAHook },
+            { "RegisterClassA", RegisterClassAHook },
+            { "RegisterClassExA", RegisterClassExAHook },
             { "SetWindowLongA", SetWindowLongAHook },
             { "SetWindowPos", SetWindowPosHook },
             { "ShowWindow", ShowWindowHook },
@@ -752,6 +754,112 @@ HWND Win32AToWAdapter::CreateWindowExAHook(DWORD dwExStyle, LPCSTR lpClassName, 
     }
 
     return hWnd;
+}
+
+ATOM Win32AToWAdapter::RegisterClassAHook(const WNDCLASSA* lpWndClass)
+{
+    if (lpWndClass == nullptr)
+        return 0;
+
+    WNDCLASSW wndClassW;
+    wndClassW.style = lpWndClass->style;
+    wndClassW.lpfnWndProc = lpWndClass->lpfnWndProc;
+    wndClassW.cbClsExtra = lpWndClass->cbClsExtra;
+    wndClassW.cbWndExtra = lpWndClass->cbWndExtra;
+    wndClassW.hInstance = lpWndClass->hInstance;
+    wndClassW.hIcon = lpWndClass->hIcon;
+    wndClassW.hCursor = lpWndClass->hCursor;
+    wndClassW.hbrBackground = lpWndClass->hbrBackground;
+
+    wstring menuNameW;
+    if (lpWndClass->lpszMenuName != nullptr)
+    {
+        if (IS_INTRESOURCE(lpWndClass->lpszMenuName))
+            wndClassW.lpszMenuName = (LPCWSTR)lpWndClass->lpszMenuName;
+        else
+        {
+            menuNameW = SjisTunnelEncoding::Decode(lpWndClass->lpszMenuName);
+            wndClassW.lpszMenuName = menuNameW.c_str();
+        }
+    }
+    else
+    {
+        wndClassW.lpszMenuName = nullptr;
+    }
+
+    wstring classNameW;
+    if (lpWndClass->lpszClassName != nullptr)
+    {
+        if (IS_INTRESOURCE(lpWndClass->lpszClassName))
+            wndClassW.lpszClassName = (LPCWSTR)lpWndClass->lpszClassName;
+        else
+        {
+            classNameW = SjisTunnelEncoding::Decode(lpWndClass->lpszClassName);
+            wndClassW.lpszClassName = classNameW.c_str();
+        }
+    }
+    else
+    {
+        wndClassW.lpszClassName = nullptr;
+    }
+
+    winapi_log("RegisterClassA: class=%s",
+               lpWndClass->lpszClassName ? (IS_INTRESOURCE(lpWndClass->lpszClassName) ? to_string((DWORD_PTR)lpWndClass->lpszClassName).c_str() : lpWndClass->lpszClassName) : "(null)");
+    return RegisterClassW(&wndClassW);
+}
+
+ATOM Win32AToWAdapter::RegisterClassExAHook(const WNDCLASSEXA* lpWndClassEx)
+{
+    if (lpWndClassEx == nullptr)
+        return 0;
+
+    WNDCLASSEXW wndClassExW;
+    wndClassExW.cbSize = sizeof(WNDCLASSEXW);
+    wndClassExW.style = lpWndClassEx->style;
+    wndClassExW.lpfnWndProc = lpWndClassEx->lpfnWndProc;
+    wndClassExW.cbClsExtra = lpWndClassEx->cbClsExtra;
+    wndClassExW.cbWndExtra = lpWndClassEx->cbWndExtra;
+    wndClassExW.hInstance = lpWndClassEx->hInstance;
+    wndClassExW.hIcon = lpWndClassEx->hIcon;
+    wndClassExW.hCursor = lpWndClassEx->hCursor;
+    wndClassExW.hbrBackground = lpWndClassEx->hbrBackground;
+    wndClassExW.hIconSm = lpWndClassEx->hIconSm;
+
+    wstring menuNameW;
+    if (lpWndClassEx->lpszMenuName != nullptr)
+    {
+        if (IS_INTRESOURCE(lpWndClassEx->lpszMenuName))
+            wndClassExW.lpszMenuName = (LPCWSTR)lpWndClassEx->lpszMenuName;
+        else
+        {
+            menuNameW = SjisTunnelEncoding::Decode(lpWndClassEx->lpszMenuName);
+            wndClassExW.lpszMenuName = menuNameW.c_str();
+        }
+    }
+    else
+    {
+        wndClassExW.lpszMenuName = nullptr;
+    }
+
+    wstring classNameW;
+    if (lpWndClassEx->lpszClassName != nullptr)
+    {
+        if (IS_INTRESOURCE(lpWndClassEx->lpszClassName))
+            wndClassExW.lpszClassName = (LPCWSTR)lpWndClassEx->lpszClassName;
+        else
+        {
+            classNameW = SjisTunnelEncoding::Decode(lpWndClassEx->lpszClassName);
+            wndClassExW.lpszClassName = classNameW.c_str();
+        }
+    }
+    else
+    {
+        wndClassExW.lpszClassName = nullptr;
+    }
+
+    winapi_log("RegisterClassExA: class=%s",
+               lpWndClassEx->lpszClassName ? (IS_INTRESOURCE(lpWndClassEx->lpszClassName) ? to_string((DWORD_PTR)lpWndClassEx->lpszClassName).c_str() : lpWndClassEx->lpszClassName) : "(null)");
+    return RegisterClassExW(&wndClassExW);
 }
 
 LONG Win32AToWAdapter::SetWindowLongAHook(HWND hWnd, int nIndex, LONG dwNewLong)
