@@ -3,6 +3,7 @@
 #include "PillarboxedState.h"
 #include "Util/Logger.h"
 #include <shlobj.h>
+#include <commctrl.h>
 
 using namespace std;
 
@@ -80,6 +81,7 @@ void Win32AToWAdapter::Init()
             { "SetWindowTextA", SetWindowTextAHook },
             { "SetDlgItemTextA", SetDlgItemTextAHook },
             { "CreateDialogParamA", CreateDialogParamAHook },
+            { "SendMessageA", SendMessageAHook },
 
             { "GetMonitorInfoA", GetMonitorInfoAHook },
             { "EnumDisplayDevicesA", EnumDisplayDevicesAHook },
@@ -1074,6 +1076,86 @@ HWND Win32AToWAdapter::CreateDialogParamAHook(HINSTANCE hInstance, LPCSTR lpTemp
     }
 
     return hWnd;
+}
+
+LRESULT Win32AToWAdapter::SendMessageAHook(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam)
+{
+    switch (Msg)
+    {
+        case WM_SETTEXT:
+        {
+            wstring textW = lParam ? SjisTunnelEncoding::Decode((const char*)lParam) : L"";
+            if (!textW.empty())
+            {
+                wstring translated = RuntimeConfig::Translate(textW);
+                if (translated != textW)
+                {
+                    string translatedA = SjisTunnelEncoding::Encode(translated);
+                    return SendMessageA(hWnd, Msg, wParam, (LPARAM)translatedA.c_str());
+                }
+            }
+            break;
+        }
+
+        case TTM_ADDTOOLA:
+        case TTM_UPDATETIPTEXTA:
+        {
+            LPTOOLINFOA pInfoA = (LPTOOLINFOA)lParam;
+            if (pInfoA != nullptr && pInfoA->lpszText != nullptr && !IS_INTRESOURCE(pInfoA->lpszText))
+            {
+                wstring textW = SjisTunnelEncoding::Decode(pInfoA->lpszText);
+                if (!textW.empty())
+                {
+                    wstring translated = RuntimeConfig::Translate(textW);
+                    if (translated != textW)
+                    {
+                        string translatedA = SjisTunnelEncoding::Encode(translated);
+                        LPSTR originalText = pInfoA->lpszText;
+                        pInfoA->lpszText = const_cast<char*>(translatedA.c_str());
+                        LRESULT res = SendMessageA(hWnd, Msg, wParam, lParam);
+                        pInfoA->lpszText = originalText;
+                        return res;
+                    }
+                }
+            }
+            break;
+        }
+
+        case TTM_SETTITLEA:
+        {
+            wstring titleW = lParam ? SjisTunnelEncoding::Decode((const char*)lParam) : L"";
+            if (!titleW.empty())
+            {
+                wstring translated = RuntimeConfig::Translate(titleW);
+                if (translated != titleW)
+                {
+                    string translatedA = SjisTunnelEncoding::Encode(translated);
+                    return SendMessageA(hWnd, Msg, wParam, (LPARAM)translatedA.c_str());
+                }
+            }
+            break;
+        }
+
+        case CB_ADDSTRING:
+        case CB_INSERTSTRING:
+        case LB_ADDSTRING:
+        case LB_INSERTSTRING:
+        {
+            wstring textW = lParam ? SjisTunnelEncoding::Decode((const char*)lParam) : L"";
+            if (!textW.empty())
+            {
+                wstring translated = RuntimeConfig::Translate(textW);
+                if (translated != textW)
+                {
+                    string translatedA = SjisTunnelEncoding::Encode(translated);
+                    return SendMessageA(hWnd, Msg, wParam, (LPARAM)translatedA.c_str());
+                }
+            }
+            break;
+        }
+    }
+
+    return SendMessageA(hWnd, Msg, wParam, lParam);
 }
 
 BOOL Win32AToWAdapter::GetMonitorInfoAHook(HMONITOR hMonitor, LPMONITORINFO lpmi)
