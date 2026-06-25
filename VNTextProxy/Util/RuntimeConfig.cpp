@@ -4,6 +4,7 @@
 #include "Logger.h"
 #include "external/json.hpp"
 #include <fstream>
+#include <set>
 #include <sstream>
 
 using json = nlohmann::json;
@@ -160,4 +161,40 @@ const std::wstring& RuntimeConfig::Translate(const std::wstring& original)
     if (it != _translations.end())
         return it->second;
     return original;
+}
+
+bool RuntimeConfig::ContainsJapanese(const std::wstring& str)
+{
+    for (wchar_t c : str)
+    {
+        if ((c >= 0x3040 && c <= 0x309F) || // Hiragana
+            (c >= 0x30A0 && c <= 0x30FF) || // Katakana
+            (c >= 0x4E00 && c <= 0x9FFF) || // Kanji
+            (c >= 0xFF00 && c <= 0xFFEF))   // Full-width
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+static std::set<std::wstring> s_loggedStrings;
+
+void RuntimeConfig::LogUntranslatedString(const std::wstring& str)
+{
+    if (s_loggedStrings.find(str) != s_loggedStrings.end())
+        return;
+
+    s_loggedStrings.insert(str);
+
+    std::ofstream file("untranslated_strings.txt", std::ios::app | std::ios::binary);
+    if (file.is_open())
+    {
+        int sizeNeeded = WideCharToMultiByte(CP_UTF8, 0, str.c_str(), (int)str.size(), nullptr, 0, nullptr, nullptr);
+        std::string utf8Str(sizeNeeded, 0);
+        WideCharToMultiByte(CP_UTF8, 0, str.c_str(), (int)str.size(), &utf8Str[0], sizeNeeded, nullptr, nullptr);
+
+        file << utf8Str << "\r\n";
+        file.close();
+    }
 }

@@ -716,6 +716,21 @@ LSTATUS Win32AToWAdapter::RegSetValueExAHook(HKEY hKey, LPCSTR lpValueName, DWOR
     return RegSetValueExW(hKey, lpValueName != nullptr ? SjisTunnelEncoding::Decode(lpValueName).c_str() : nullptr, 0, dwType, (BYTE*)dataW.data(), dataW.size() * sizeof(wchar_t));
 }
 
+static wstring TranslateAndLog(const wstring& original)
+{
+    if (original.empty())
+        return original;
+    wstring translated = RuntimeConfig::Translate(original);
+    if (translated == original)
+    {
+        if (RuntimeConfig::ContainsJapanese(original))
+        {
+            RuntimeConfig::LogUntranslatedString(original);
+        }
+    }
+    return translated;
+}
+
 HWND Win32AToWAdapter::CreateWindowExAHook(DWORD dwExStyle, LPCSTR lpClassName, LPCSTR lpWindowName,
     DWORD dwStyle, int X, int Y, int nWidth, int nHeight, HWND hWndParent, HMENU hMenu, HINSTANCE hInstance, LPVOID lpParam)
 {
@@ -741,7 +756,7 @@ HWND Win32AToWAdapter::CreateWindowExAHook(DWORD dwExStyle, LPCSTR lpClassName, 
             wstring windowNameW = SjisTunnelEncoding::Decode(lpWindowName);
             if (!windowNameW.empty())
             {
-                wstring translated = RuntimeConfig::Translate(windowNameW);
+                wstring translated = TranslateAndLog(windowNameW);
                 if (translated != windowNameW)
                 {
                     SetWindowTextW(hWnd, translated.c_str());
@@ -960,7 +975,7 @@ LRESULT Win32AToWAdapter::DefWindowProcAHook(HWND hWnd, UINT msg, WPARAM wParam,
         {
             wstring wtext = lParam ? SjisTunnelEncoding::Decode((const char*)lParam) : L"";
             if (!wtext.empty())
-                wtext = RuntimeConfig::Translate(wtext);
+                wtext = TranslateAndLog(wtext);
             return DefWindowProcW(hWnd, msg, wParam, (LPARAM)wtext.c_str());
         }
 
@@ -975,7 +990,7 @@ BOOL Win32AToWAdapter::AppendMenuAHook(HMENU hMenu, UINT uFlags, UINT_PTR uIDNew
 {
     wstring text = lpNewItem ? SjisTunnelEncoding::Decode(lpNewItem) : L"";
     if (!text.empty())
-        text = RuntimeConfig::Translate(text);
+        text = TranslateAndLog(text);
     return AppendMenuW(hMenu, uFlags, uIDNewItem, text.c_str());
 }
 
@@ -983,7 +998,7 @@ BOOL Win32AToWAdapter::InsertMenuAHook(HMENU hMenu, UINT uPosition, UINT uFlags,
 {
     wstring text = lpNewItem ? SjisTunnelEncoding::Decode(lpNewItem) : L"";
     if (!text.empty())
-        text = RuntimeConfig::Translate(text);
+        text = TranslateAndLog(text);
     return InsertMenuW(hMenu, uPosition, uFlags, uIDNewItem, text.c_str());
 }
 
@@ -998,7 +1013,7 @@ BOOL Win32AToWAdapter::InsertMenuItemAHook(HMENU hmenu, UINT item, BOOL fByPosit
     {
         text = SjisTunnelEncoding::Decode(lpmi->dwTypeData);
         if (!text.empty())
-            text = RuntimeConfig::Translate(text);
+            text = TranslateAndLog(text);
         menuItemW.dwTypeData = const_cast<wchar_t*>(text.c_str());
     }
 
@@ -1009,8 +1024,8 @@ int Win32AToWAdapter::MessageBoxAHook(HWND hWnd, LPCSTR lpText, LPCSTR lpCaption
 {
     wstring text = lpText ? SjisTunnelEncoding::Decode(lpText) : L"";
     wstring caption = lpCaption ? SjisTunnelEncoding::Decode(lpCaption) : L"";
-    if (!text.empty()) text = RuntimeConfig::Translate(text);
-    if (!caption.empty()) caption = RuntimeConfig::Translate(caption);
+    if (!text.empty()) text = TranslateAndLog(text);
+    if (!caption.empty()) caption = TranslateAndLog(caption);
     return MessageBoxW(hWnd, text.c_str(), caption.c_str(), uType);
 }
 
@@ -1022,7 +1037,7 @@ static BOOL CALLBACK TranslateChildProc(HWND hWnd, LPARAM lParam)
         std::vector<wchar_t> buffer(length + 1);
         GetWindowTextW(hWnd, buffer.data(), length + 1);
         std::wstring original(buffer.data());
-        std::wstring translated = RuntimeConfig::Translate(original);
+        std::wstring translated = TranslateAndLog(original);
         if (translated != original)
         {
             SetWindowTextW(hWnd, translated.c_str());
@@ -1035,7 +1050,7 @@ BOOL Win32AToWAdapter::SetWindowTextAHook(HWND hWnd, LPCSTR lpString)
 {
     wstring text = lpString ? SjisTunnelEncoding::Decode(lpString) : L"";
     if (!text.empty())
-        text = RuntimeConfig::Translate(text);
+        text = TranslateAndLog(text);
     return SetWindowTextW(hWnd, text.c_str());
 }
 
@@ -1043,7 +1058,7 @@ BOOL Win32AToWAdapter::SetDlgItemTextAHook(HWND hDlg, int nIDDlgItem, LPCSTR lpS
 {
     wstring text = lpString ? SjisTunnelEncoding::Decode(lpString) : L"";
     if (!text.empty())
-        text = RuntimeConfig::Translate(text);
+        text = TranslateAndLog(text);
     return SetDlgItemTextW(hDlg, nIDDlgItem, text.c_str());
 }
 
@@ -1064,7 +1079,7 @@ HWND Win32AToWAdapter::CreateDialogParamAHook(HINSTANCE hInstance, LPCSTR lpTemp
             std::vector<wchar_t> buffer(length + 1);
             GetWindowTextW(hWnd, buffer.data(), length + 1);
             std::wstring original(buffer.data());
-            std::wstring translated = RuntimeConfig::Translate(original);
+            std::wstring translated = TranslateAndLog(original);
             if (translated != original)
             {
                 SetWindowTextW(hWnd, translated.c_str());
@@ -1087,7 +1102,7 @@ LRESULT Win32AToWAdapter::SendMessageAHook(HWND hWnd, UINT Msg, WPARAM wParam, L
             wstring textW = lParam ? SjisTunnelEncoding::Decode((const char*)lParam) : L"";
             if (!textW.empty())
             {
-                wstring translated = RuntimeConfig::Translate(textW);
+                wstring translated = TranslateAndLog(textW);
                 if (translated != textW)
                 {
                     string translatedA = SjisTunnelEncoding::Encode(translated);
@@ -1106,7 +1121,7 @@ LRESULT Win32AToWAdapter::SendMessageAHook(HWND hWnd, UINT Msg, WPARAM wParam, L
                 wstring textW = SjisTunnelEncoding::Decode(pInfoA->lpszText);
                 if (!textW.empty())
                 {
-                    wstring translated = RuntimeConfig::Translate(textW);
+                    wstring translated = TranslateAndLog(textW);
                     if (translated != textW)
                     {
                         string translatedA = SjisTunnelEncoding::Encode(translated);
@@ -1126,7 +1141,7 @@ LRESULT Win32AToWAdapter::SendMessageAHook(HWND hWnd, UINT Msg, WPARAM wParam, L
             wstring titleW = lParam ? SjisTunnelEncoding::Decode((const char*)lParam) : L"";
             if (!titleW.empty())
             {
-                wstring translated = RuntimeConfig::Translate(titleW);
+                wstring translated = TranslateAndLog(titleW);
                 if (translated != titleW)
                 {
                     string translatedA = SjisTunnelEncoding::Encode(translated);
@@ -1144,7 +1159,7 @@ LRESULT Win32AToWAdapter::SendMessageAHook(HWND hWnd, UINT Msg, WPARAM wParam, L
             wstring textW = lParam ? SjisTunnelEncoding::Decode((const char*)lParam) : L"";
             if (!textW.empty())
             {
-                wstring translated = RuntimeConfig::Translate(textW);
+                wstring translated = TranslateAndLog(textW);
                 if (translated != textW)
                 {
                     string translatedA = SjisTunnelEncoding::Encode(translated);

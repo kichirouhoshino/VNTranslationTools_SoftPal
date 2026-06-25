@@ -27,6 +27,8 @@ public:
     static int MaxLineWidth();
     static int NumLinesWarnThreshold();
     static const std::wstring& Translate(const std::wstring& original);
+    static bool ContainsJapanese(const std::wstring& str);
+    static void LogUntranslatedString(const std::wstring& str);
 
 private:
     static inline bool _loaded = false;

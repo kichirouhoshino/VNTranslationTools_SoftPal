@@ -25,6 +25,26 @@ __declspec(naked) void BabelPatch::Hook_Translate()
 
 void BabelPatch::Handle_Translate(bbl_translate_engine* pEngine)
 {
-    pEngine->translated_buffer = SjisTunnelEncoding::Decode(pEngine->untranslated_buffer);
+    std::wstring original = SjisTunnelEncoding::Decode(pEngine->untranslated_buffer);
+    if (!original.empty())
+    {
+        std::wstring translated = RuntimeConfig::Translate(original);
+        if (translated != original)
+        {
+            pEngine->translated_buffer = translated;
+        }
+        else
+        {
+            pEngine->translated_buffer = original;
+            if (RuntimeConfig::ContainsJapanese(original))
+            {
+                RuntimeConfig::LogUntranslatedString(original);
+            }
+        }
+    }
+    else
+    {
+        pEngine->translated_buffer = original;
+    }
     pEngine->untranslated_buffer.clear();
 }
