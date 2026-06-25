@@ -475,7 +475,7 @@ BOOL Win32AToWAdapter::PathRemoveFileSpecAHook(LPSTR pszPath)
     wstring pathW = SjisTunnelEncoding::Decode(pszPath);
     BOOL result = pPathRemoveFileSpecW(pathW.data());
     string pathA = SjisTunnelEncoding::Encode(pathW);
-    strcpy(pszPath, pathA.c_str());
+    strcpy_s(pszPath, MAX_PATH, pathA.c_str());
     return result;
 }
 
@@ -492,7 +492,7 @@ BOOL Win32AToWAdapter::PathRenameExtensionAHook(LPSTR pszPath, LPCSTR pszExt)
     BOOL result = pPathRenameExtensionW(pathW.data(), extW.c_str());
     pathW.resize(wcslen(pathW.c_str()));
     string pathA = SjisTunnelEncoding::Encode(pathW);
-    strcpy(pszPath, pathA.c_str());
+    strcpy_s(pszPath, MAX_PATH, pathA.c_str());
     return result;
 }
 
@@ -506,7 +506,7 @@ void Win32AToWAdapter::PathUnquoteSpacesAHook(LPSTR lpszPath)
     wstring pathW = SjisTunnelEncoding::Decode(lpszPath);
     pPathUnquoteSpacesW(pathW.data());
     string pathA = SjisTunnelEncoding::Encode(pathW.data());
-    strcpy(lpszPath, pathA.c_str());
+    strcpy_s(lpszPath, MAX_PATH, pathA.c_str());
 }
 
 BOOL Win32AToWAdapter::PathAddExtensionAHook(LPSTR pszPath, LPCSTR pszExt)
@@ -522,7 +522,7 @@ BOOL Win32AToWAdapter::PathAddExtensionAHook(LPSTR pszPath, LPCSTR pszExt)
     BOOL result = pPathAddExtensionW(pathW.data(), pszExt != nullptr ? extW.c_str() : nullptr);
     pathW.resize(wcslen(pathW.c_str()));
     string pathA = SjisTunnelEncoding::Encode(pathW);
-    strcpy(pszPath, pathA.c_str());
+    strcpy_s(pszPath, MAX_PATH, pathA.c_str());
     return result;
 }
 
