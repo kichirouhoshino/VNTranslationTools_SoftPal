@@ -325,11 +325,13 @@ DWORD Win32AToWAdapter::SearchPathAHook(LPCSTR lpPath, LPCSTR lpFileName, LPCSTR
 
 DWORD Win32AToWAdapter::GetFileAttributesAHook(LPCSTR lpFileName)
 {
+    winapi_log("GetFileAttributesA: %s", lpFileName);
     return GetFileAttributesW(SjisTunnelEncoding::Decode(lpFileName).c_str());
 }
 
 HANDLE Win32AToWAdapter::CreateFileAHook(LPCSTR lpFileName, DWORD dwDesiredAccess, DWORD dwShareMode, LPSECURITY_ATTRIBUTES lpSecurityAttributes, DWORD dwCreationDisposition, DWORD dwFlagsAndAttributes, HANDLE hTemplateFile)
 {
+    winapi_log("CreateFileA: %s, access=0x%x, disp=%d", lpFileName, dwDesiredAccess, dwCreationDisposition);
     return CreateFileW(SjisTunnelEncoding::Decode(lpFileName).c_str(), dwDesiredAccess, dwShareMode, lpSecurityAttributes, dwCreationDisposition, dwFlagsAndAttributes, hTemplateFile);
 }
 
@@ -346,6 +348,7 @@ BOOL Win32AToWAdapter::DeleteFileAHook(LPCSTR lpFileName)
 
 BOOL Win32AToWAdapter::CreateDirectoryAHook(LPCSTR lpPathName, LPSECURITY_ATTRIBUTES lpSecurityAttributes)
 {
+    winapi_log("CreateDirectoryA: %s", lpPathName);
     return CreateDirectoryW(SjisTunnelEncoding::Decode(lpPathName).c_str(), lpSecurityAttributes);
 }
 
@@ -424,6 +427,7 @@ BOOL Win32AToWAdapter::SHGetSpecialFolderPathAHook(HWND hwnd, LPSTR pszPath, int
 
     string strPath = SjisTunnelEncoding::Encode(wszPath);
     strcpy_s(pszPath, MAX_PATH, strPath.c_str());
+    winapi_log("SHGetSpecialFolderPathA: csidl=%d, resultPath=%s", csidl, pszPath);
     return TRUE;
 }
 
@@ -451,6 +455,7 @@ BOOL Win32AToWAdapter::SetCurrentDirectoryAHook(LPCSTR lpPathName)
 
 BOOL Win32AToWAdapter::PathFileExistsAHook(LPCSTR pszPath)
 {
+    winapi_log("PathFileExistsA: path=%s", pszPath);
     static auto pPathFileExistsW = (BOOL (__stdcall *)(LPCWSTR))GetProcAddress(GetModuleHandleW(L"shlwapi.dll"), "PathFileExistsW");
     if (pPathFileExistsW)
         return pPathFileExistsW(SjisTunnelEncoding::Decode(pszPath).c_str());
@@ -459,6 +464,7 @@ BOOL Win32AToWAdapter::PathFileExistsAHook(LPCSTR pszPath)
 
 BOOL Win32AToWAdapter::PathIsDirectoryAHook(LPCSTR pszPath)
 {
+    winapi_log("PathIsDirectoryA: path=%s", pszPath);
     static auto pPathIsDirectoryW = (BOOL (__stdcall *)(LPCWSTR))GetProcAddress(GetModuleHandleW(L"shlwapi.dll"), "PathIsDirectoryW");
     if (pPathIsDirectoryW)
         return pPathIsDirectoryW(SjisTunnelEncoding::Decode(pszPath).c_str());
