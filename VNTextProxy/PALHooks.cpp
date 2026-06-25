@@ -91,6 +91,144 @@ namespace PALFontTypeOverride
     }
 }
 
+namespace PALTextHooks
+{
+    static bool IsValidStringPointer(const char* ptr)
+    {
+        if (ptr == nullptr) return false;
+        if ((uintptr_t)ptr < 0x10000 || (uintptr_t)ptr >= 0x7FFE0000) return false;
+        
+        __try {
+            if (*ptr == '\0') return false;
+            for (int i = 0; i < 512; i++) {
+                if (ptr[i] == '\0') {
+                    return i > 0;
+                }
+            }
+        }
+        __except (EXCEPTION_EXECUTE_HANDLER) {
+            return false;
+        }
+        return false;
+    }
+
+    static std::string TranslateString(const char* sjisStr)
+    {
+        std::wstring wstr = SjisTunnelEncoding::Decode(sjisStr);
+        if (!wstr.empty())
+        {
+            std::wstring translated = RuntimeConfig::Translate(wstr);
+            if (translated != wstr)
+            {
+                return SjisTunnelEncoding::Encode(translated);
+            }
+            else if (RuntimeConfig::ContainsJapanese(wstr))
+            {
+                RuntimeConfig::LogUntranslatedString(wstr);
+            }
+        }
+        return "";
+    }
+
+    // 1. PalSpriteCreateText
+    typedef void* (__cdecl* PalSpriteCreateText_t)(void* a1, const char* text, void* a3, void* a4, void* a5, void* a6, void* a7, void* a8, void* a9, void* a10, void* a11, void* a12);
+    static PalSpriteCreateText_t oPalSpriteCreateText = nullptr;
+
+    static void* __cdecl PalSpriteCreateText_Hook(void* a1, const char* text, void* a3, void* a4, void* a5, void* a6, void* a7, void* a8, void* a9, void* a10, void* a11, void* a12)
+    {
+        static thread_local std::string translatedBuf;
+        translatedBuf.clear();
+        if (IsValidStringPointer(text))
+        {
+            translatedBuf = TranslateString(text);
+            if (!translatedBuf.empty())
+            {
+                text = translatedBuf.c_str();
+            }
+        }
+        return oPalSpriteCreateText(a1, text, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12);
+    }
+
+    // 2. PalSpriteCreateTextEx
+    typedef void* (__cdecl* PalSpriteCreateTextEx_t)(void* a1, const char* text, void* a3, void* a4, void* a5, void* a6, void* a7, void* a8, void* a9, void* a10, void* a11, void* a12, void* a13, void* a14, void* a15, void* a16);
+    static PalSpriteCreateTextEx_t oPalSpriteCreateTextEx = nullptr;
+
+    static void* __cdecl PalSpriteCreateTextEx_Hook(void* a1, const char* text, void* a3, void* a4, void* a5, void* a6, void* a7, void* a8, void* a9, void* a10, void* a11, void* a12, void* a13, void* a14, void* a15, void* a16)
+    {
+        static thread_local std::string translatedBuf;
+        translatedBuf.clear();
+        if (IsValidStringPointer(text))
+        {
+            translatedBuf = TranslateString(text);
+            if (!translatedBuf.empty())
+            {
+                text = translatedBuf.c_str();
+            }
+        }
+        return oPalSpriteCreateTextEx(a1, text, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16);
+    }
+
+    // 3. PalFontDrawText
+    typedef void* (__cdecl* PalFontDrawText_t)(void* a1, const char* text, void* a3, void* a4, void* a5, void* a6, void* a7, void* a8, void* a9, void* a10, void* a11, void* a12);
+    static PalFontDrawText_t oPalFontDrawText = nullptr;
+
+    static void* __cdecl PalFontDrawText_Hook(void* a1, const char* text, void* a3, void* a4, void* a5, void* a6, void* a7, void* a8, void* a9, void* a10, void* a11, void* a12)
+    {
+        static thread_local std::string translatedBuf;
+        translatedBuf.clear();
+        if (IsValidStringPointer(text))
+        {
+            translatedBuf = TranslateString(text);
+            if (!translatedBuf.empty())
+            {
+                text = translatedBuf.c_str();
+            }
+        }
+        return oPalFontDrawText(a1, text, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12);
+    }
+
+    bool Install(HMODULE hPalDll)
+    {
+        oPalSpriteCreateText = (PalSpriteCreateText_t)GetProcAddress(hPalDll, "PalSpriteCreateText");
+        oPalSpriteCreateTextEx = (PalSpriteCreateTextEx_t)GetProcAddress(hPalDll, "PalSpriteCreateTextEx");
+        oPalFontDrawText = (PalFontDrawText_t)GetProcAddress(hPalDll, "PalFontDrawText");
+
+        if (!oPalSpriteCreateText && !oPalSpriteCreateTextEx && !oPalFontDrawText)
+        {
+            dbg_log("PALTextHooks: None of the target text functions found in PAL.dll");
+            return false;
+        }
+
+        DetourTransactionBegin();
+        DetourUpdateThread(GetCurrentThread());
+        if (oPalSpriteCreateText)
+        {
+            dbg_log("PALTextHooks: Hooking PalSpriteCreateText at 0x%p", oPalSpriteCreateText);
+            DetourAttach(&(PVOID&)oPalSpriteCreateText, (PVOID)PalSpriteCreateText_Hook);
+        }
+        if (oPalSpriteCreateTextEx)
+        {
+            dbg_log("PALTextHooks: Hooking PalSpriteCreateTextEx at 0x%p", oPalSpriteCreateTextEx);
+            DetourAttach(&(PVOID&)oPalSpriteCreateTextEx, (PVOID)PalSpriteCreateTextEx_Hook);
+        }
+        if (oPalFontDrawText)
+        {
+            dbg_log("PALTextHooks: Hooking PalFontDrawText at 0x%p", oPalFontDrawText);
+            DetourAttach(&(PVOID&)oPalFontDrawText, (PVOID)PalFontDrawText_Hook);
+        }
+        LONG err = DetourTransactionCommit();
+
+        if (err == NO_ERROR)
+        {
+            dbg_log("PALTextHooks: Hooks installed successfully");
+            return true;
+        }
+
+        dbg_log("PALTextHooks: DetourAttach failed, error=%d", err);
+        return false;
+    }
+}
+
 namespace PALGrabCurrentText
 {
     // Newer SoftPAL PalTaskGetTaskData takes one argument (pass NULL to use default task).
@@ -158,6 +296,9 @@ namespace PALGrabCurrentText
 
         // Hook PalFontSetType to prevent bitmap font mode (type 4) which bypasses GDI.
         PALFontTypeOverride::Install(hMod);
+
+        // Hook engine text functions to translate/log custom UI elements
+        PALTextHooks::Install(hMod);
 
         oPalTaskGetData = (decltype(oPalTaskGetData))GetProcAddress(hMod, "PalTaskGetTaskData");
         if (oPalTaskGetData)
