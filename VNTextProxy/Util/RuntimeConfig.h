@@ -26,6 +26,7 @@ public:
     static int ProportionalLineWidth();
     static int MaxLineWidth();
     static int NumLinesWarnThreshold();
+    static const std::wstring& Translate(const std::wstring& original);
 
 private:
     static inline bool _loaded = false;
@@ -43,4 +44,5 @@ private:
     static inline int _proportionalLineWidth;
     static inline int _maxLineWidth;
     static inline int _numLinesWarnThreshold;
+    static inline std::map<std::wstring, std::wstring> _translations{};
 };

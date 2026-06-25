@@ -70,6 +70,9 @@ private:
     static BOOL __stdcall InsertMenuAHook(HMENU hMenu, UINT uPosition, UINT uFlags, UINT_PTR uIDNewItem, LPCSTR lpNewItem);
     static BOOL __stdcall InsertMenuItemAHook(HMENU hmenu, UINT item, BOOL fByPosition, LPCMENUITEMINFOA lpmi);
     static int __stdcall MessageBoxAHook(HWND hWnd, LPCSTR lpText, LPCSTR lpCaption, UINT uType);
+    static BOOL __stdcall SetWindowTextAHook(HWND hWnd, LPCSTR lpString);
+    static BOOL __stdcall SetDlgItemTextAHook(HWND hDlg, int nIDDlgItem, LPCSTR lpString);
+    static HWND __stdcall CreateDialogParamAHook(HINSTANCE hInstance, LPCSTR lpTemplateName, HWND hWndParent, DLGPROC lpDialogFunc, LPARAM dwInitParam);
 
     static BOOL __stdcall GetMonitorInfoAHook(HMONITOR hMonitor, LPMONITORINFO lpmi);
     static BOOL __stdcall EnumDisplayDevicesAHook(LPCSTR lpDevice, DWORD iDevNum, PDISPLAY_DEVICEA lpDisplayDevice, DWORD dwFlags);

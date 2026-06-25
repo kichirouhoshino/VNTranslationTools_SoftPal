@@ -70,6 +70,15 @@ void RuntimeConfig::Load()
         _maxLineWidth = config.at("maxLineWidth").get<int>();
         _numLinesWarnThreshold = config.at("numLinesWarnThreshold").get<int>();
 
+        if (config.contains("translations")) {
+            auto translationsObj = config.at("translations");
+            for (auto it = translationsObj.begin(); it != translationsObj.end(); ++it) {
+                std::wstring original = Utf8ToWstring(it.key());
+                std::wstring translation = Utf8ToWstring(it.value().get<std::string>());
+                _translations.insert({original, translation});
+            }
+        }
+
         // Read graphicsMode string (required, no default)
         if (!config.contains("graphicsMode")) {
             ShowErrorAndExit(L"Missing required setting: graphicsMode\n\n"
@@ -144,3 +153,11 @@ int RuntimeConfig::FontYTopPosDecrease() { return _fontYTopPosDecrease; }
 int RuntimeConfig::ProportionalLineWidth() { return _proportionalLineWidth; }
 int RuntimeConfig::MaxLineWidth() { return _maxLineWidth; }
 int RuntimeConfig::NumLinesWarnThreshold() { return _numLinesWarnThreshold; }
+
+const std::wstring& RuntimeConfig::Translate(const std::wstring& original)
+{
+    auto it = _translations.find(original);
+    if (it != _translations.end())
+        return it->second;
+    return original;
+}

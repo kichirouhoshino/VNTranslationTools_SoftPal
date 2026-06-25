@@ -77,6 +77,9 @@ void Win32AToWAdapter::Init()
             { "InsertMenuA", InsertMenuAHook },
             { "InsertMenuItemA", InsertMenuItemAHook },
             { "MessageBoxA", MessageBoxAHook },
+            { "SetWindowTextA", SetWindowTextAHook },
+            { "SetDlgItemTextA", SetDlgItemTextAHook },
+            { "CreateDialogParamA", CreateDialogParamAHook },
 
             { "GetMonitorInfoA", GetMonitorInfoAHook },
             { "EnumDisplayDevicesA", EnumDisplayDevicesAHook },
@@ -719,10 +722,19 @@ HWND Win32AToWAdapter::CreateWindowExAHook(DWORD dwExStyle, LPCSTR lpClassName, 
         lpWindowName ? lpWindowName : "(null)",
         dwStyle, dwExStyle, X, Y, nWidth, nHeight);
 
+    wstring windowNameW;
+    bool hasWindowName = (lpWindowName != nullptr);
+    if (hasWindowName)
+    {
+        windowNameW = SjisTunnelEncoding::Decode(lpWindowName);
+        if (!windowNameW.empty())
+            windowNameW = RuntimeConfig::Translate(windowNameW);
+    }
+
     HWND hWnd = CreateWindowExW(
         dwExStyle,
         lpClassName ? SjisTunnelEncoding::Decode(lpClassName).c_str() : nullptr,
-        lpWindowName ? SjisTunnelEncoding::Decode(lpWindowName).c_str() : nullptr,
+        hasWindowName ? windowNameW.c_str() : nullptr,
         dwStyle, X, Y, nWidth, nHeight, hWndParent, hMenu, hInstance, lpParam);
 
     winapi_log("  -> HWND=0x%p", hWnd);
@@ -934,7 +946,9 @@ LRESULT Win32AToWAdapter::DefWindowProcAHook(HWND hWnd, UINT msg, WPARAM wParam,
 
         case WM_SETTEXT:
         {
-            wstring wtext = SjisTunnelEncoding::Decode((const char*)lParam);
+            wstring wtext = lParam ? SjisTunnelEncoding::Decode((const char*)lParam) : L"";
+            if (!wtext.empty())
+                wtext = RuntimeConfig::Translate(wtext);
             return DefWindowProcW(hWnd, msg, wParam, (LPARAM)wtext.c_str());
         }
 
@@ -947,12 +961,18 @@ LRESULT Win32AToWAdapter::DefWindowProcAHook(HWND hWnd, UINT msg, WPARAM wParam,
 
 BOOL Win32AToWAdapter::AppendMenuAHook(HMENU hMenu, UINT uFlags, UINT_PTR uIDNewItem, LPCSTR lpNewItem)
 {
-    return AppendMenuW(hMenu, uFlags, uIDNewItem, SjisTunnelEncoding::Decode(lpNewItem).c_str());
+    wstring text = lpNewItem ? SjisTunnelEncoding::Decode(lpNewItem) : L"";
+    if (!text.empty())
+        text = RuntimeConfig::Translate(text);
+    return AppendMenuW(hMenu, uFlags, uIDNewItem, text.c_str());
 }
 
 BOOL Win32AToWAdapter::InsertMenuAHook(HMENU hMenu, UINT uPosition, UINT uFlags, UINT_PTR uIDNewItem, LPCSTR lpNewItem)
 {
-    return InsertMenuW(hMenu, uPosition, uFlags, uIDNewItem, SjisTunnelEncoding::Decode(lpNewItem).c_str());
+    wstring text = lpNewItem ? SjisTunnelEncoding::Decode(lpNewItem) : L"";
+    if (!text.empty())
+        text = RuntimeConfig::Translate(text);
+    return InsertMenuW(hMenu, uPosition, uFlags, uIDNewItem, text.c_str());
 }
 
 BOOL Win32AToWAdapter::InsertMenuItemAHook(HMENU hmenu, UINT item, BOOL fByPosition, LPCMENUITEMINFOA lpmi)
@@ -965,6 +985,8 @@ BOOL Win32AToWAdapter::InsertMenuItemAHook(HMENU hmenu, UINT item, BOOL fByPosit
         (lpmi->fMask & MIIM_STRING))
     {
         text = SjisTunnelEncoding::Decode(lpmi->dwTypeData);
+        if (!text.empty())
+            text = RuntimeConfig::Translate(text);
         menuItemW.dwTypeData = const_cast<wchar_t*>(text.c_str());
     }
 
@@ -973,7 +995,80 @@ BOOL Win32AToWAdapter::InsertMenuItemAHook(HMENU hmenu, UINT item, BOOL fByPosit
 
 int Win32AToWAdapter::MessageBoxAHook(HWND hWnd, LPCSTR lpText, LPCSTR lpCaption, UINT uType)
 {
-    return MessageBoxW(hWnd, SjisTunnelEncoding::Decode(lpText).c_str(), SjisTunnelEncoding::Decode(lpCaption).c_str(), uType);
+    wstring text = lpText ? SjisTunnelEncoding::Decode(lpText) : L"";
+    wstring caption = lpCaption ? SjisTunnelEncoding::Decode(lpCaption) : L"";
+    if (!text.empty()) text = RuntimeConfig::Translate(text);
+    if (!caption.empty()) caption = RuntimeConfig::Translate(caption);
+    return MessageBoxW(hWnd, text.c_str(), caption.c_str(), uType);
+}
+
+static BOOL CALLBACK TranslateChildProc(HWND hWnd, LPARAM lParam)
+{
+    int length = GetWindowTextLengthW(hWnd);
+    if (length > 0)
+    {
+        std::vector<wchar_t> buffer(length + 1);
+        GetWindowTextW(hWnd, buffer.data(), length + 1);
+        std::wstring original(buffer.data());
+        std::wstring translated = RuntimeConfig::Translate(original);
+        if (translated != original)
+        {
+            SetWindowTextW(hWnd, translated.c_str());
+        }
+    }
+    return TRUE;
+}
+
+BOOL Win32AToWAdapter::SetWindowTextAHook(HWND hWnd, LPCSTR lpString)
+{
+    wstring text = lpString ? SjisTunnelEncoding::Decode(lpString) : L"";
+    if (!text.empty())
+        text = RuntimeConfig::Translate(text);
+    return SetWindowTextW(hWnd, text.c_str());
+}
+
+BOOL Win32AToWAdapter::SetDlgItemTextAHook(HWND hDlg, int nIDDlgItem, LPCSTR lpString)
+{
+    wstring text = lpString ? SjisTunnelEncoding::Decode(lpString) : L"";
+    if (!text.empty())
+        text = RuntimeConfig::Translate(text);
+    return SetDlgItemTextW(hDlg, nIDDlgItem, text.c_str());
+}
+
+HWND Win32AToWAdapter::CreateDialogParamAHook(HINSTANCE hInstance, LPCSTR lpTemplateName, HWND hWndParent, DLGPROC lpDialogFunc, LPARAM dwInitParam)
+{
+    HWND hWnd = nullptr;
+    if (IS_INTRESOURCE(lpTemplateName))
+    {
+        hWnd = CreateDialogParamW(hInstance, (LPCWSTR)lpTemplateName, hWndParent, lpDialogFunc, dwInitParam);
+    }
+    else
+    {
+        wstring templateNameW = SjisTunnelEncoding::Decode(lpTemplateName);
+        hWnd = CreateDialogParamW(hInstance, templateNameW.c_str(), hWndParent, lpDialogFunc, dwInitParam);
+    }
+
+    if (hWnd != nullptr)
+    {
+        // Translate dialog title
+        int length = GetWindowTextLengthW(hWnd);
+        if (length > 0)
+        {
+            std::vector<wchar_t> buffer(length + 1);
+            GetWindowTextW(hWnd, buffer.data(), length + 1);
+            std::wstring original(buffer.data());
+            std::wstring translated = RuntimeConfig::Translate(original);
+            if (translated != original)
+            {
+                SetWindowTextW(hWnd, translated.c_str());
+            }
+        }
+
+        // Translate all child controls
+        EnumChildWindows(hWnd, TranslateChildProc, 0);
+    }
+
+    return hWnd;
 }
 
 BOOL Win32AToWAdapter::GetMonitorInfoAHook(HMONITOR hMonitor, LPMONITORINFO lpmi)

@@ -34,7 +34,21 @@
   // Monospace is used in niche situations like messages rendered on a computer within the fiction.
   "monospaceFontFilename": "Inconsolata ExtraBold.ttf",
   "monospaceFontName": "Inconsolata",
-  // Font height increase relative to baseline, generally 21 -> 27.
-  // This increases the size of the entire font but is measured in terms of pixel height, not "pt"s.
-  "fontHeightIncrease": 6
+  "fontHeightIncrease": 6,
+  "translations": {
+    "恋×シンアイ彼女": "Koi x Shin Ai Kanojo",
+    "環境設定": "Preferences",
+    "ｷｬﾝｾﾙ": "Cancel",
+    "基本動作": "Basic Settings",
+    "非アクティブでも動作する": "Run in Background",
+    "非アクティブ( 他のウインドウに隠れる )になっても": "Even if inactive (covered by other windows)",
+    "システムは常に動作し続けます。": "The system will keep running.",
+    "ウインドウ": "Window",
+    "鱁全て表示": "Show All",
+    "鱂全て非表示": "Hide All",
+    "鱃終了": "Exit",
+    "全て表示": "Show All",
+    "全て非表示": "Hide All",
+    "終了": "Exit"
+  }
 }
