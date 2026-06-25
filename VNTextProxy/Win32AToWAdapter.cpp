@@ -65,8 +65,6 @@ void Win32AToWAdapter::Init()
             { "RegSetValueExA", RegSetValueExAHook },
 
             { "CreateWindowExA", CreateWindowExAHook },
-            { "RegisterClassA", RegisterClassAHook },
-            { "RegisterClassExA", RegisterClassExAHook },
             { "SetWindowLongA", SetWindowLongAHook },
             { "SetWindowPos", SetWindowPosHook },
             { "ShowWindow", ShowWindowHook },
@@ -724,142 +722,46 @@ HWND Win32AToWAdapter::CreateWindowExAHook(DWORD dwExStyle, LPCSTR lpClassName, 
         lpWindowName ? lpWindowName : "(null)",
         dwStyle, dwExStyle, X, Y, nWidth, nHeight);
 
-    wstring windowNameW;
-    bool hasWindowName = (lpWindowName != nullptr);
-    if (hasWindowName)
-    {
-        windowNameW = SjisTunnelEncoding::Decode(lpWindowName);
-        if (!windowNameW.empty())
-            windowNameW = RuntimeConfig::Translate(windowNameW);
-    }
-
-    HWND hWnd = CreateWindowExW(
+    // Call the original ANSI function to ensure the window procedure receives ANSI messages
+    HWND hWnd = CreateWindowExA(
         dwExStyle,
-        lpClassName ? SjisTunnelEncoding::Decode(lpClassName).c_str() : nullptr,
-        hasWindowName ? windowNameW.c_str() : nullptr,
+        lpClassName,
+        lpWindowName,
         dwStyle, X, Y, nWidth, nHeight, hWndParent, hMenu, hInstance, lpParam);
 
     winapi_log("  -> HWND=0x%p", hWnd);
 
-    // Track the main game window (FlyableHeart class with no parent)
-    // Only track if pillarboxedFullscreen is enabled
-    if (RuntimeConfig::PillarboxedFullscreen() && lpClassName && hWndParent == nullptr && PillarboxedState::g_mainGameWindow == nullptr)
+    if (hWnd != nullptr)
     {
-        // Check if this looks like the main game window (not a child or popup)
-        if (dwStyle & WS_OVERLAPPEDWINDOW || dwStyle & WS_POPUP)
+        // Dynamically translate the window title using the Unicode API to support all characters
+        if (lpWindowName != nullptr)
         {
-            PillarboxedState::g_mainGameWindow = hWnd;
-            winapi_log("  [Pillarboxed] Tracking as main game window");
+            wstring windowNameW = SjisTunnelEncoding::Decode(lpWindowName);
+            if (!windowNameW.empty())
+            {
+                wstring translated = RuntimeConfig::Translate(windowNameW);
+                if (translated != windowNameW)
+                {
+                    SetWindowTextW(hWnd, translated.c_str());
+                    winapi_log("  [CreateWindowExA] SetWindowTextW: %ls", translated.c_str());
+                }
+            }
+        }
+
+        // Track the main game window (FlyableHeart class with no parent)
+        // Only track if pillarboxedFullscreen is enabled
+        if (RuntimeConfig::PillarboxedFullscreen() && lpClassName && hWndParent == nullptr && PillarboxedState::g_mainGameWindow == nullptr)
+        {
+            // Check if this looks like the main game window (not a child or popup)
+            if (dwStyle & WS_OVERLAPPEDWINDOW || dwStyle & WS_POPUP)
+            {
+                PillarboxedState::g_mainGameWindow = hWnd;
+                winapi_log("  [Pillarboxed] Tracking as main game window");
+            }
         }
     }
 
     return hWnd;
-}
-
-ATOM Win32AToWAdapter::RegisterClassAHook(const WNDCLASSA* lpWndClass)
-{
-    if (lpWndClass == nullptr)
-        return 0;
-
-    WNDCLASSW wndClassW;
-    wndClassW.style = lpWndClass->style;
-    wndClassW.lpfnWndProc = lpWndClass->lpfnWndProc;
-    wndClassW.cbClsExtra = lpWndClass->cbClsExtra;
-    wndClassW.cbWndExtra = lpWndClass->cbWndExtra;
-    wndClassW.hInstance = lpWndClass->hInstance;
-    wndClassW.hIcon = lpWndClass->hIcon;
-    wndClassW.hCursor = lpWndClass->hCursor;
-    wndClassW.hbrBackground = lpWndClass->hbrBackground;
-
-    wstring menuNameW;
-    if (lpWndClass->lpszMenuName != nullptr)
-    {
-        if (IS_INTRESOURCE(lpWndClass->lpszMenuName))
-            wndClassW.lpszMenuName = (LPCWSTR)lpWndClass->lpszMenuName;
-        else
-        {
-            menuNameW = SjisTunnelEncoding::Decode(lpWndClass->lpszMenuName);
-            wndClassW.lpszMenuName = menuNameW.c_str();
-        }
-    }
-    else
-    {
-        wndClassW.lpszMenuName = nullptr;
-    }
-
-    wstring classNameW;
-    if (lpWndClass->lpszClassName != nullptr)
-    {
-        if (IS_INTRESOURCE(lpWndClass->lpszClassName))
-            wndClassW.lpszClassName = (LPCWSTR)lpWndClass->lpszClassName;
-        else
-        {
-            classNameW = SjisTunnelEncoding::Decode(lpWndClass->lpszClassName);
-            wndClassW.lpszClassName = classNameW.c_str();
-        }
-    }
-    else
-    {
-        wndClassW.lpszClassName = nullptr;
-    }
-
-    winapi_log("RegisterClassA: class=%s",
-               lpWndClass->lpszClassName ? (IS_INTRESOURCE(lpWndClass->lpszClassName) ? to_string((DWORD_PTR)lpWndClass->lpszClassName).c_str() : lpWndClass->lpszClassName) : "(null)");
-    return RegisterClassW(&wndClassW);
-}
-
-ATOM Win32AToWAdapter::RegisterClassExAHook(const WNDCLASSEXA* lpWndClassEx)
-{
-    if (lpWndClassEx == nullptr)
-        return 0;
-
-    WNDCLASSEXW wndClassExW;
-    wndClassExW.cbSize = sizeof(WNDCLASSEXW);
-    wndClassExW.style = lpWndClassEx->style;
-    wndClassExW.lpfnWndProc = lpWndClassEx->lpfnWndProc;
-    wndClassExW.cbClsExtra = lpWndClassEx->cbClsExtra;
-    wndClassExW.cbWndExtra = lpWndClassEx->cbWndExtra;
-    wndClassExW.hInstance = lpWndClassEx->hInstance;
-    wndClassExW.hIcon = lpWndClassEx->hIcon;
-    wndClassExW.hCursor = lpWndClassEx->hCursor;
-    wndClassExW.hbrBackground = lpWndClassEx->hbrBackground;
-    wndClassExW.hIconSm = lpWndClassEx->hIconSm;
-
-    wstring menuNameW;
-    if (lpWndClassEx->lpszMenuName != nullptr)
-    {
-        if (IS_INTRESOURCE(lpWndClassEx->lpszMenuName))
-            wndClassExW.lpszMenuName = (LPCWSTR)lpWndClassEx->lpszMenuName;
-        else
-        {
-            menuNameW = SjisTunnelEncoding::Decode(lpWndClassEx->lpszMenuName);
-            wndClassExW.lpszMenuName = menuNameW.c_str();
-        }
-    }
-    else
-    {
-        wndClassExW.lpszMenuName = nullptr;
-    }
-
-    wstring classNameW;
-    if (lpWndClassEx->lpszClassName != nullptr)
-    {
-        if (IS_INTRESOURCE(lpWndClassEx->lpszClassName))
-            wndClassExW.lpszClassName = (LPCWSTR)lpWndClassEx->lpszClassName;
-        else
-        {
-            classNameW = SjisTunnelEncoding::Decode(lpWndClassEx->lpszClassName);
-            wndClassExW.lpszClassName = classNameW.c_str();
-        }
-    }
-    else
-    {
-        wndClassExW.lpszClassName = nullptr;
-    }
-
-    winapi_log("RegisterClassExA: class=%s",
-               lpWndClassEx->lpszClassName ? (IS_INTRESOURCE(lpWndClassEx->lpszClassName) ? to_string((DWORD_PTR)lpWndClassEx->lpszClassName).c_str() : lpWndClassEx->lpszClassName) : "(null)");
-    return RegisterClassExW(&wndClassExW);
 }
 
 LONG Win32AToWAdapter::SetWindowLongAHook(HWND hWnd, int nIndex, LONG dwNewLong)
@@ -1145,16 +1047,11 @@ BOOL Win32AToWAdapter::SetDlgItemTextAHook(HWND hDlg, int nIDDlgItem, LPCSTR lpS
 
 HWND Win32AToWAdapter::CreateDialogParamAHook(HINSTANCE hInstance, LPCSTR lpTemplateName, HWND hWndParent, DLGPROC lpDialogFunc, LPARAM dwInitParam)
 {
-    HWND hWnd = nullptr;
-    if (IS_INTRESOURCE(lpTemplateName))
-    {
-        hWnd = CreateDialogParamW(hInstance, (LPCWSTR)lpTemplateName, hWndParent, lpDialogFunc, dwInitParam);
-    }
-    else
-    {
-        wstring templateNameW = SjisTunnelEncoding::Decode(lpTemplateName);
-        hWnd = CreateDialogParamW(hInstance, templateNameW.c_str(), hWndParent, lpDialogFunc, dwInitParam);
-    }
+    winapi_log("CreateDialogParamA: template=%s",
+               IS_INTRESOURCE(lpTemplateName) ? to_string((DWORD_PTR)lpTemplateName).c_str() : lpTemplateName);
+
+    // Call the original ANSI function to ensure the dialog procedure receives ANSI messages
+    HWND hWnd = CreateDialogParamA(hInstance, lpTemplateName, hWndParent, lpDialogFunc, dwInitParam);
 
     if (hWnd != nullptr)
     {

@@ -57,8 +57,6 @@ private:
     static LSTATUS __stdcall RegSetValueExAHook(HKEY hKey, LPCSTR lpValueName, DWORD Reserved, DWORD dwType, const BYTE* lpData, DWORD cbData);
     
     static HWND __stdcall CreateWindowExAHook(DWORD dwExStyle, LPCSTR lpClassName, LPCSTR lpWindowName, DWORD dwStyle, int X, int Y, int nWidth, int nHeight, HWND hWndParent, HMENU hMenu, HINSTANCE hInstance, LPVOID lpParam);
-    static ATOM __stdcall RegisterClassAHook(const WNDCLASSA* lpWndClass);
-    static ATOM __stdcall RegisterClassExAHook(const WNDCLASSEXA* lpWndClassEx);
     static LONG __stdcall SetWindowLongAHook(HWND hWnd, int nIndex, LONG dwNewLong);
     static BOOL __stdcall SetWindowPosHook(HWND hWnd, HWND hWndInsertAfter, int X, int Y, int cx, int cy, UINT uFlags);
     static BOOL __stdcall ShowWindowHook(HWND hWnd, int nCmdShow);
