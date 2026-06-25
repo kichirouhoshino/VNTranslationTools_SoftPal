@@ -75,6 +75,8 @@
     "<size=14 bkcolor=0xc0ffffff>クイックロード": "<size=14 bkcolor=0xc0ffffff>Quick Load",
     "クイックロード": "Quick Load",
     "<size=14 bkcolor=0xc0ffffff>クイックセーブ": "<size=14 bkcolor=0xc0ffffff>Quick Save",
-    "クイックセーブ": "Quick Save"
+    "クイックセーブ": "Quick Save",
+    "初起動時のウインドウモードを設定します。": "Select the window mode for the first startup.",
+    "フルスクリーンでゲームを開始する。": "Start the game in fullscreen."
   }
 }
