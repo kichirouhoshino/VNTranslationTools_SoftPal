@@ -47,6 +47,9 @@ private:
     static void __stdcall PathUnquoteSpacesAHook(LPSTR lpszPath);
     static BOOL __stdcall PathAddExtensionAHook(LPSTR pszPath, LPCSTR pszExt);
     static DWORD_PTR __stdcall SHGetFileInfoAHook(LPCSTR pszPath, DWORD dwFileAttributes, SHFILEINFOA* psfi, UINT cbFileInfo, UINT uFlags);
+    static DWORD __stdcall GetFileVersionInfoSizeAHook(LPCSTR lptstrFilename, LPDWORD lpdwHandle);
+    static BOOL __stdcall GetFileVersionInfoAHook(LPCSTR lptstrFilename, DWORD dwHandle, DWORD dwLen, LPVOID lpData);
+    static BOOL __stdcall VerQueryValueAHook(LPCVOID pBlock, LPCSTR lpSubBlock, LPVOID* lplpBuffer, PUINT puLen);
 
     static LSTATUS __stdcall RegCreateKeyExAHook(HKEY hKey, LPCSTR lpSubKey, DWORD Reserved, LPSTR lpClass, DWORD dwOptions, REGSAM samDesired, const LPSECURITY_ATTRIBUTES lpSecurityAttributes, PHKEY phkResult, LPDWORD lpdwDisposition);
     static LSTATUS __stdcall RegOpenKeyExAHook(HKEY hKey, LPCSTR lpSubKey, DWORD ulOptions, REGSAM samDesired, PHKEY phkResult);

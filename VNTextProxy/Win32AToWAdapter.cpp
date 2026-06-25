@@ -55,6 +55,9 @@ void Win32AToWAdapter::Init()
             { "PathUnquoteSpacesA", PathUnquoteSpacesAHook },
             { "PathAddExtensionA", PathAddExtensionAHook },
             { "SHGetFileInfoA", SHGetFileInfoAHook },
+            { "GetFileVersionInfoSizeA", GetFileVersionInfoSizeAHook },
+            { "GetFileVersionInfoA", GetFileVersionInfoAHook },
+            { "VerQueryValueA", VerQueryValueAHook },
 
             { "RegCreateKeyExA", RegCreateKeyExAHook },
             { "RegOpenKeyExA", RegOpenKeyExAHook },
@@ -572,6 +575,68 @@ DWORD_PTR Win32AToWAdapter::SHGetFileInfoAHook(LPCSTR pszPath, DWORD dwFileAttri
     strcpy_s(psfi->szTypeName, sizeof(psfi->szTypeName), typeNameA.c_str());
 
     return result;
+}
+
+static HMODULE GetVersionDll()
+{
+    static HMODULE hVersion = nullptr;
+    if (!hVersion)
+    {
+        hVersion = GetModuleHandleW(L"version.dll");
+        if (!hVersion)
+            hVersion = LoadLibraryW(L"version.dll");
+    }
+    return hVersion;
+}
+
+DWORD Win32AToWAdapter::GetFileVersionInfoSizeAHook(LPCSTR lptstrFilename, LPDWORD lpdwHandle)
+{
+    winapi_log("GetFileVersionInfoSizeA: %s", lptstrFilename);
+    static auto pGetFileVersionInfoSizeW = (DWORD (__stdcall *)(LPCWSTR, LPDWORD))GetProcAddress(GetVersionDll(), "GetFileVersionInfoSizeW");
+    if (pGetFileVersionInfoSizeW)
+        return pGetFileVersionInfoSizeW(SjisTunnelEncoding::Decode(lptstrFilename).c_str(), lpdwHandle);
+    return 0;
+}
+
+BOOL Win32AToWAdapter::GetFileVersionInfoAHook(LPCSTR lptstrFilename, DWORD dwHandle, DWORD dwLen, LPVOID lpData)
+{
+    winapi_log("GetFileVersionInfoA: %s", lptstrFilename);
+    static auto pGetFileVersionInfoW = (BOOL (__stdcall *)(LPCWSTR, DWORD, DWORD, LPVOID))GetProcAddress(GetVersionDll(), "GetFileVersionInfoW");
+    if (pGetFileVersionInfoW)
+        return pGetFileVersionInfoW(SjisTunnelEncoding::Decode(lptstrFilename).c_str(), dwHandle, dwLen, lpData);
+    return FALSE;
+}
+
+BOOL Win32AToWAdapter::VerQueryValueAHook(LPCVOID pBlock, LPCSTR lpSubBlock, LPVOID* lplpBuffer, PUINT puLen)
+{
+    winapi_log("VerQueryValueA: subBlock=%s", lpSubBlock);
+    static auto pVerQueryValueW = (BOOL (__stdcall *)(LPCVOID, LPCWSTR, LPVOID*, PUINT))GetProcAddress(GetVersionDll(), "VerQueryValueW");
+    if (!pVerQueryValueW)
+        return FALSE;
+
+    wstring subBlockW = SjisTunnelEncoding::Decode(lpSubBlock);
+    LPVOID lpBufferW = nullptr;
+    UINT lenW = 0;
+    BOOL result = pVerQueryValueW(pBlock, subBlockW.c_str(), &lpBufferW, &lenW);
+    if (!result || lpBufferW == nullptr)
+        return result;
+
+    if (strstr(lpSubBlock, "StringFileInfo") != nullptr)
+    {
+        static thread_local std::vector<std::string> s_queryCache;
+        s_queryCache.push_back(SjisTunnelEncoding::Encode((LPCWSTR)lpBufferW));
+        *lplpBuffer = (void*)s_queryCache.back().c_str();
+        if (puLen != nullptr)
+            *puLen = s_queryCache.back().size();
+        winapi_log("  -> StringFileInfo value: %s", s_queryCache.back().c_str());
+    }
+    else
+    {
+        *lplpBuffer = lpBufferW;
+        if (puLen != nullptr)
+            *puLen = lenW;
+    }
+    return TRUE;
 }
 
 LSTATUS Win32AToWAdapter::RegCreateKeyExAHook(HKEY hKey, LPCSTR lpSubKey, DWORD Reserved, LPSTR lpClass, DWORD dwOptions, REGSAM samDesired, const LPSECURITY_ATTRIBUTES lpSecurityAttributes, PHKEY phkResult, LPDWORD lpdwDisposition)
