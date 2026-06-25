@@ -57,7 +57,10 @@ void proxy_log(LogCategory category, const char* format, ...)
         va_end(args);
 
         fprintf(g_proxyLog, "\n");
-        fflush(g_proxyLog);
+        if (category == LogCategory::FATAL)
+        {
+            fflush(g_proxyLog);
+        }
     }
 }
 
